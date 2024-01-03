@@ -1,4 +1,25 @@
+function translate() {
+    import("../translations.js").then((file) => {
+        const elementsToTranslate = document.querySelectorAll('[data-i18n]')
+        for (let a = 0; a < elementsToTranslate.length; a++) {
+            const element = elementsToTranslate[a];
+            let message = '';
+            if (element.dataset && element.dataset.i18n) {
+                let lang = navigator.language || navigator.userLanguage
+                if (lang.includes("-")) {
+                    lang = lang.split("-")[0]
+                }
+                message = file.translations[lang][element.dataset.i18n]
+            }
+            if (message.length > 0) {
+                element.textContent = message
+            }
+        }
+    })
+}
+
 window.onload = function () {
+    translate()
     const headers = []
     const h1 = document.querySelectorAll("#moin-content-data h1")
     const h2 = document.querySelectorAll("#moin-content-data h2")
