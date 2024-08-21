@@ -47,6 +47,7 @@ def random_string(length, allowed_chars=None):
 
 # password recovery token
 
+
 def generate_token(key=None, stamp=None):
     """
     generate a pair of a secret key and a crypto token.
@@ -74,7 +75,7 @@ def generate_token(key=None, stamp=None):
     key_encoded = key if isinstance(key, bytes) else key.encode()
     stamp_encoded = str(stamp).encode()
     h = hmac.new(key_encoded, stamp_encoded, digestmod=hashlib.sha256).hexdigest()
-    token = "{0}-{1}".format(stamp, h)
+    token = f"{stamp}-{h}"
     return str(key), token
 
 
@@ -89,7 +90,7 @@ def valid_token(key, token, timeout=2 * 60 * 60):
     :rtype: bool
     :returns: token is valid and not timed out
     """
-    parts = token.split('-')
+    parts = token.split("-")
     if len(parts) != 2:
         return False
     try:
@@ -103,6 +104,7 @@ def valid_token(key, token, timeout=2 * 60 * 60):
 
 
 # miscellaneous
+
 
 def cache_key(**kw):
     """
@@ -132,5 +134,5 @@ def hash_hexdigest(content, bufsize=4096):
         hash.update(content)
         size = len(content)
     else:
-        raise ValueError("unsupported content object: {0!r}".format(content))
+        raise ValueError(f"unsupported content object: {content!r}")
     return size, HASH_ALGORITHM, str(hash.hexdigest())

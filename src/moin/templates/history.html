@@ -8,7 +8,7 @@
 {% import "utils.html" as utils with context %}
 
 {% set summary = history[0].get('summary', None) if history else None %}
-{% set heading = _("History of %(fqname)s", fqname=utils.item_moniker(item.meta, [fqname])) %}
+{% set heading = _("History of {fqname}").format(fqname=utils.item_moniker(item.meta, [fqname])) %}
 {% set first_itemid = history[0].itemid %}
 {% set user_may_write = user.may.write(fqname) %}
 {% set user_may_destroy = user.may.destroy(fqname) %}
@@ -52,7 +52,7 @@
                             {%- if history[0].trash %}
                                 <th class="moin-button-diff"><span class="moin-button moin-button-disabled">Diff</span></th>
                             {%- else %}
-                                <th class="moin-button-diff"><input class="moin-button" type="submit" value="Diff" /></th>
+                                <th class="moin-button-diff"><input class="moin-button" type="submit" value="Diff"></th>
                             {%- endif %}
                             <th>{{ _("Editor") }}</th>
                             <th>{{ _("Content Type") }}</th>
@@ -74,8 +74,8 @@
                                     {%- if doc.itemid == first_itemid %}
                                         <div class="moin-hist-rev">
                                             {%- if len(history) > 1 and not history[0].trash and not doc.trash %}
-                                                <input type="radio" name="rev1" value="{{ doc.revid }}" {{ checker['check1'] }} />
-                                                <input type="radio" name="rev2" value="{{ doc.revid }}" {{ checker['check2'] }} />
+                                                <input type="radio" name="rev1" value="{{ doc.revid }}" {{ checker['check1'] }}>
+                                                <input type="radio" name="rev2" value="{{ doc.revid }}" {{ checker['check2'] }}>
                                                 {%- if checker['check1'] %}
                                                     {%- if checker.update({'check1': ''}) %}{% endif %}
                                                 {%- elif checker['check2'] %}

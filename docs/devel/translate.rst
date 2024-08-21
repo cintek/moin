@@ -18,7 +18,8 @@ language doesn't exist yet`_.
 
 2. Go to the top directory and execute::
 
-       python setup.py update_catalog -l <locale>
+       pybabel update -l <locale> -i src/moin/translations/MoinMoin.pot \
+               -d src/moin/translations/ -w 116
 
    where locale is the short language descriptor of your desired
    language. It should be the name of a folder in MoinMoin/translations.
@@ -59,7 +60,7 @@ language doesn't exist yet`_.
 
 4. Save the messages.po file and execute::
 
-       python setup.py compile_catalog -l <locale>
+       pybabel compile -l <locale> -d src/moin/translations/
 
 
 Guidelines for translators
@@ -83,7 +84,8 @@ the developers, but ...
 
 1. Initialize a new catalog::
 
-       python setup.py init_catalog -l <locale>
+       pybabel init -l <locale> -i src/moin/translations/MoinMoin.pot \
+               -d src/moin/translations/ -w 116
 
 2. Adjust the ``src/moin/translations/<locale>/LC_MESSAGES/messages.po``.
 
@@ -114,23 +116,20 @@ A newly created translation needs a few initial preparations:
 Note for developers
 -------------------
 
-Since we support newstyle gettext there is no need to use the
-``format()``-Method in internationalized Strings anymore. An example
-will explain this: instead of
-``_('Hello %(name)s!') % dict(name='World')`` you can just
-write ``_('Hello %(name)s!', name='World')``.
+We use the ``format()``-Method in internationalized Strings, e.g.
+``_('Hello {name}').format(name='World')``. ``_()`` is an alias for ``gettext()``
 
 If the translatable string contains a variable plural, that means
-the string contains an object which you don't know the exact quantity
-of, then you will have to use
-``ngettext()``. Note that this is not only needed for the decision
+the string contains an object whose exact number you don't know,
+you will have to use ``N_()``, which is an alias for ``ngettext()``.
+Note that this is not only needed for the decision
 between one and more objects, because other languages have other
 and more difficult plurals than English. The usage is
-``ngettext(singular, plural, num, **variables)``. ``**variables``
-enables you to use the newstyle form as explained above.
+``N_(singular, plural, num).format(**variables)``. ``**variables``
+are used to substitute the keys by ``format()`` as explained above.
 
-For example:
-``ngettext("%(number)d file removed from %(directory)s", "%(number)d files removed from %(directory)s", num=n, number=n, directory=directory)``
+Example:
+``N_('{number} file removed from {directory}', '{number} files removed from {directory}', num=n).format(number=n, directory=directory)``
 
 ``n`` has to appear twice because the first gives ngettext() information
 about the exact number and the second is the variable for the format
@@ -139,7 +138,11 @@ string replacement.
 If you made changes to any gettext() string, please update the .pot file
 using::
 
-    python setup.py extract_messages
+    pybabel extract -F babel.cfg -o src/moin/translations/MoinMoin.pot \
+            -k "_ gettext L_ lazy_gettext N_ ngettext" \
+            --msgid-bugs-address "English <moin-user@python.org>" \
+            --copyright-holder "Moin Core Team, see http://moinmo.in/MoinCoreTeamGroup" \
+            --project "moin" --version "<version>" -w 116 src/
 
 Because this sometimes creates large diffs, just because of a
 change in line numbers, you can of course use this command sparingly.

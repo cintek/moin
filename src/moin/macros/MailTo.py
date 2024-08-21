@@ -10,7 +10,7 @@ or the obfuscated display passed as the first macro argument).
 from flask import g as flaskg
 
 from moin.utils.tree import moin_page, xlink
-from moin.macros._base import MacroInlineBase
+from moin.macros._base import MacroInlineBase, fail_message
 from moin.mail.sendmail import decodeSpamSafeEmail
 from moin.i18n import _
 
@@ -22,27 +22,27 @@ class Macro(MacroInlineBase):
         where 2nd parameter is optional.
         """
         if arguments:
-            arguments = arguments[0].split(',')
+            arguments = arguments[0].split(",")
         try:
             assert len(arguments) > 0 and len(arguments) < 3
             email = arguments[0]
             assert len(email) >= 5
         except (AttributeError, AssertionError):
-            raise ValueError(_("MailTo: invalid format, try: <<MailTo(user AT example DOT org, write me)>>"))
-
+            err_msg = _("Invalid format, try: <<MailTo(user AT example DOT org, write me)>>")
+            return fail_message(err_msg, alternative)
         try:
             text = arguments[1]
         except IndexError:
-            text = ''
+            text = ""
 
         if flaskg.user.valid:
             # decode address and generate mailto: link
             email = decodeSpamSafeEmail(email)
-            result = moin_page.a(attrib={xlink.href: 'mailto:{0}'.format(email)}, children=[text or email])
+            result = moin_page.a(attrib={xlink.href: f"mailto:{email}"}, children=[text or email])
         else:
             # unknown user, maybe even a spambot, so just return text as given in macro args
             if text:
                 text += " "
-            result = moin_page.code(children=[text, "<{0}>".format(email)])
+            result = moin_page.code(children=[text, f"<{email}>"])
 
         return result

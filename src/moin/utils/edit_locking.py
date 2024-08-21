@@ -1,4 +1,5 @@
 # Copyright: 2019 MoinMoin:RogerHaase
+# Copyright: 2024 MoinMoin:UlrichB
 # License: GNU GPL v2 (or any later version), see LICENSE.txt for details.
 
 """
@@ -44,13 +45,14 @@ from moin.constants.keys import ITEMID, REVID, REV_NUMBER, NAME
 from moin.utils import show_time
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
 # these are used to create paths to the sql database and saved drafts
-SQL = 'sql'
-DB_NAME = 'edit_utils.db'
-PREVIEW = 'preview'
+SQL = "sql"
+DB_NAME = "edit_utils.db"
+PREVIEW = "preview"
 
 
 class Edit_Utils:
@@ -64,17 +66,17 @@ class Edit_Utils:
     def __init__(self, item):
         self.item = item
         self.user_name = self.get_user_name()
-        self.item_name = ','.join(item.names)
+        self.item_name = ",".join(item.names)
         # new items will not have rev_number, revid, nor itemid
         self.rev_number = item.meta.get(REV_NUMBER, 0)
-        self.rev_id = item.meta.get(REVID, 'new-item')
+        self.rev_id = item.meta.get(REVID, "new-item")
         self.item_id = item.meta.get(ITEMID, item.meta.get(NAME)[0])
 
-        self.coding = 'utf-8'
-        contenttype = self.item.meta.get('contenttype', None)
+        self.coding = "utf-8"
+        contenttype = self.item.meta.get("contenttype", None)
         if contenttype is not None:
             ct = Type(contenttype)
-            self.coding = ct.parameters.get('charset', self.coding)
+            self.coding = ct.parameters.get("charset", self.coding)
 
         self.sql_filename = os.path.join(app.cfg.instance_dir, SQL, DB_NAME)
         if os.path.exists(self.sql_filename):
@@ -85,8 +87,8 @@ class Edit_Utils:
         self.preview_path = os.path.join(app.cfg.instance_dir, PREVIEW)
         self.draft_name = self.make_draft_name(self.rev_id)
 
-        self.conn.isolation_level = 'EXCLUSIVE'
-        self.conn.execute('BEGIN EXCLUSIVE')
+        self.conn.isolation_level = "EXCLUSIVE"
+        self.conn.execute("BEGIN EXCLUSIVE")
 
     def create_db_tables(self):
         """
@@ -101,13 +103,16 @@ class Edit_Utils:
             os.mkdir(os.path.join(app.cfg.instance_dir, PREVIEW))
         con = sqlite3.connect(self.sql_filename)  # opens existing file or creates new file
         cursor = con.cursor()
-        cursor.execute('''CREATE TABLE editlock(item_id TEXT NOT NULL PRIMARY KEY,
+        cursor.execute(
+            """CREATE TABLE editlock(item_id TEXT NOT NULL PRIMARY KEY,
                                                 item_name TEXT,
                                                 user_name TEXT,
                                                 timeout FLOAT
                                                 )
-        ''')
-        cursor.execute('''
+        """
+        )
+        cursor.execute(
+            """
             CREATE TABLE editdraft(user_name TEXT NOT NULL PRIMARY KEY,
                                    item_id TEXT,
                                    item_name TEXT,
@@ -115,7 +120,8 @@ class Edit_Utils:
                                    save_time INTEGER,
                                    rev_id TEXT
                                    )
-        ''')
+        """
+        )
         con.commit()
         return con
 
@@ -126,10 +132,11 @@ class Edit_Utils:
 
     def make_draft_name(self, rev_id):
         """Return a file name consisting of rev_id + user_name."""
-        keepchars = ('-', '.', '_')
-        return os.path.join(self.preview_path, rev_id + '-' + "".join(
-            c for c in self.user_name if c.isalnum() or c in keepchars
-        ).rstrip())
+        keepchars = ("-", ".", "_")
+        return os.path.join(
+            self.preview_path,
+            rev_id + "-" + "".join(c for c in self.user_name if c.isalnum() or c in keepchars).rstrip(),
+        )
 
     def get_user_name(self):
         """Return user name or user IP address."""
@@ -163,18 +170,19 @@ class Edit_Utils:
                 draft_rev_number = rev_number  # XXX per line 1074 in __init__
                 rev_id = i_rev_id
                 self.draft_name = self.make_draft_name(rev_id)
-            self.cursor.execute('''DELETE FROM editdraft WHERE user_name = ? ''', (self.user_name, ))
+            self.cursor.execute("""DELETE FROM editdraft WHERE user_name = ? """, (self.user_name,))
         if data_in:
             data_in = data_in.encode(self.coding)
-            with open(self.draft_name, 'wb') as f:
+            with open(self.draft_name, "wb") as f:
                 f.write(data_in)
             save_time = int(time.time())
         else:
             save_time = 0  # indicates user is editing item but has not done a preview, no draft has been saved
         self.cursor.execute(
-            '''INSERT INTO editdraft(user_name, item_id, item_name, rev_number, save_time, rev_id)
-                           VALUES(?,?,?,?,?,?)''',
-            (self.user_name, self.item_id, self.item_name, draft_rev_number, save_time, rev_id))
+            """INSERT INTO editdraft(user_name, item_id, item_name, rev_number, save_time, rev_id)
+                           VALUES(?,?,?,?,?,?)""",
+            (self.user_name, self.item_id, self.item_name, draft_rev_number, save_time, rev_id),
+        )
         self.conn.commit()
 
     def get_draft(self):
@@ -184,9 +192,10 @@ class Edit_Utils:
         If existing draft is for wrong item, log error and delete.
         """
         self.cursor.execute(
-            '''SELECT user_name, item_id, item_name, rev_number, save_time, rev_id FROM editdraft
-               WHERE user_name=?''',
-            (self.user_name, ))
+            """SELECT user_name, item_id, item_name, rev_number, save_time, rev_id FROM editdraft
+               WHERE user_name=?""",
+            (self.user_name,),
+        )
         draft = self.cursor.fetchone()
         if draft:
             u_name, i_id, i_name, rev_number, save_time, rev_id = draft
@@ -194,12 +203,12 @@ class Edit_Utils:
                 if save_time:
                     self.draft_name = self.make_draft_name(rev_id)
                     try:
-                        with open(self.draft_name, 'rb') as f:
+                        with open(self.draft_name, "rb") as f:
                             data = f.read()
                         data = data.decode(self.coding)
                         return draft, data
-                    except IOError:
-                        logging.error("User {0} failed to load draft for: {1}".format(u_name, i_name))
+                    except OSError:
+                        logging.error(f"User {u_name} failed to load draft for: {i_name}")
                         return draft, None
                 else:
                     return draft, None
@@ -222,10 +231,10 @@ class Edit_Utils:
             draft_name = self.make_draft_name(rev_id)
             try:
                 os.remove(draft_name)
-            except IOError:
+            except OSError:
                 # draft file is created only when user does Preview
-                logging.error("IOError when deleting draft named {0} for user {1}".format(draft_name, self.user_name))
-        self.cursor.execute('''DELETE FROM editdraft WHERE user_name = ? ''', (self.user_name, ))
+                logging.error(f"IOError when deleting draft named {draft_name} for user {self.user_name}")
+        self.cursor.execute("""DELETE FROM editdraft WHERE user_name = ? """, (self.user_name,))
         self.conn.commit()
 
     # editlock methods start here
@@ -233,15 +242,16 @@ class Edit_Utils:
         """Reset existing editlock, same user or different user is given the item lock."""
         timeout = int(time.time()) + app.cfg.edit_lock_time * 60
         self.cursor.execute(
-            '''UPDATE editlock SET timeout = ?, user_name = ? WHERE item_id = ? ''',
-            (timeout, self.user_name, self.item_id))
+            """UPDATE editlock SET timeout = ?, user_name = ? WHERE item_id = ? """,
+            (timeout, self.user_name, self.item_id),
+        )
         self.conn.commit()
 
     def get_lock_status(self):
         """Return lock status of item_id, either a row of editlock or None"""
         self.cursor.execute(
-            '''SELECT item_id, item_name, user_name, timeout FROM editlock WHERE item_id=?''',
-            (self.item_id, ))
+            """SELECT item_id, item_name, user_name, timeout FROM editlock WHERE item_id=?""", (self.item_id,)
+        )
         locked = self.cursor.fetchone()
         return locked
 
@@ -265,16 +275,17 @@ class Edit_Utils:
                 if wait_time < 0.0:
                     # some other user's lock has timed out, give one-time alert user about potential future conflict,
                     msg = L_(
-                        "Edit lock for %(user_name)s timed out %(number)s %(interval)s ago, click 'Cancel' "
-                        "to yield more time, clicking 'Save' may require %(user_name)s to resolve conflicting edits.",
-                        user_name=u_name, number=number, interval=interval)
+                        "Edit lock for {user_name} timed out {number} {interval} ago, click 'Cancel' "
+                        "to yield more time, clicking 'Save' may require {user_name} to resolve conflicting edits."
+                    ).format(user_name=u_name, number=number, interval=interval)
                     self.update_editlock()
                     self.put_draft(None)
                     return LOCKED, msg
                 else:
                     # item is locked by somebody else, make current user wait
-                    msg = L_("Item '%(item_name)s' is locked by %(user_name)s. Try again in %(number)s %(interval)s.",
-                             item_name=i_name, user_name=u_name, number=number, interval=interval, )
+                    msg = L_("Item '{item_name}' is locked by {user_name}. Try again in {number} {interval}.").format(
+                        item_name=i_name, user_name=u_name, number=number, interval=interval
+                    )
                     return NO_LOCK, msg
 
             else:
@@ -285,19 +296,25 @@ class Edit_Utils:
                     u_name, i_id, i_name, rev_number, save_time, rev_id = draft
                     if self.rev_number > rev_number:
                         # current user timed out, then other user updated and saved
-                        msg = L_("Someone else updated '%(item_name)s' after your edit lock timed out. "
-                                 "If you click 'Save', conflicting changes must be manually merged. "
-                                 "Click 'Cancel' to discard changes.",
-                                 item_name=self.item_name)
-                    self.cursor.execute('''INSERT INTO editlock(item_id, item_name, user_name, timeout)
-                                      VALUES(?,?,?,?)''', (self.item_id, self.item_name, self.user_name, timeout))
+                        msg = L_(
+                            "Someone else updated '{item_name}' after your edit lock timed out. "
+                            "If you click 'Save', conflicting changes must be manually merged. "
+                            "Click 'Cancel' to discard changes."
+                        ).format(item_name=self.item_name)
+                    self.cursor.execute(
+                        """INSERT INTO editlock(item_id, item_name, user_name, timeout)
+                                      VALUES(?,?,?,?)""",
+                        (self.item_id, self.item_name, self.user_name, timeout),
+                    )
                     self.conn.commit()
                     return LOCKED, msg
                 # if no draft, preserve starting rev_number by creating entry without rev_id
                 self.put_draft(None)
 
-                self.cursor.execute('''INSERT INTO editlock(item_id, item_name, user_name, timeout) VALUES(?,?,?,?)''',
-                                    (self.item_id, self.item_name, self.user_name, timeout))
+                self.cursor.execute(
+                    """INSERT INTO editlock(item_id, item_name, user_name, timeout) VALUES(?,?,?,?)""",
+                    (self.item_id, self.item_name, self.user_name, timeout),
+                )
                 self.conn.commit()
         return LOCKED, msg
 
@@ -312,17 +329,17 @@ class Edit_Utils:
         if locked:
             i_id, i_name, u_name, timeout = locked
             if u_name == user_name:
-                self.cursor.execute('''DELETE FROM editlock WHERE item_id = ? ''', (self.item_id, ))
+                self.cursor.execute("""DELETE FROM editlock WHERE item_id = ? """, (self.item_id,))
                 self.conn.commit()
                 return
             elif not cancel:
                 # bug: someone else has active edit lock, relock_item() should have been called prior to item save
-                logging.error("User {0} tried to unlock item that was locked by someone else: {1}".format(
-                    user_name, i_name))
-                msg = L_("Item '%(item_name)s' is locked by %(user_name)s. Edit lock error, "
-                         "check Item History to verify no changes were lost.",
-                         item_name=i_name, user_name=u_name, )
+                logging.error(f"User {user_name} tried to unlock item that was locked by someone else: {i_name}")
+                msg = L_(
+                    "Item '{item_name}' is locked by {user_name}. Edit lock error, "
+                    "check Item History to verify no changes were lost."
+                ).format(item_name=i_name, user_name=u_name)
                 return msg
         if not cancel:
             # bug: there should have been a lock_item call prior to unlock call
-            logging.error("User {0} tried to unlock item that was not locked: {1}".format(user_name, self.item_name))
+            logging.error(f"User {user_name} tried to unlock item that was not locked: {self.item_name}")

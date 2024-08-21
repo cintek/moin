@@ -21,17 +21,18 @@ from moin.utils.plugins import PluginMissingError
 from . import default_registry
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
 class Converter:
     @classmethod
     def _factory(cls, input, output, macros=None, **kw):
-        if macros == 'expandall':
+        if macros == "expandall":
             return cls()
 
     def handle_macro(self, elem, page):
-        logging.debug("handle_macro elem: %r" % elem)
+        logging.debug(f"handle_macro elem: {elem!r}")
         type = elem.get(moin_page.content_type)
         alt = elem.get(moin_page.alt)
 
@@ -39,33 +40,36 @@ class Converter:
             return
 
         type = Type(type)
-        if not (type.type == 'x-moin' and type.subtype == 'macro'):
-            logging.debug("not a macro, skipping: %r" % (type, ))
+        if not (type.type == "x-moin" and type.subtype == "macro"):
+            logging.debug(f"not a macro, skipping: {type!r}")
             return
 
-        name = type.parameters['name']
+        name = type.parameters["name"]
         context_block = elem.tag == moin_page.part
         args = elem[0] if len(elem) else None
         elem_body = context_block and moin_page.body() or moin_page.inline_body()
         elem_error = moin_page.error()
 
         try:
-            cls = plugins.importPlugin(app.cfg, 'macros', name, function='Macro')
+            cls = plugins.importPlugin(app.cfg, "macros", name, function="Macro")
             macro = cls()
             ret = macro((), args, page, alt, context_block)
             elem_body.append(ret)
 
         except PluginMissingError:
-            elem_error.append('<<%s>> %s' % (name, _('Error: invalid macro name.')))
+            elem_error.append(f"<<{name}>> {_('Error: invalid macro name.')}")
 
         except Exception as e:
             # we do not want that a faulty macro aborts rendering of the page
             # and makes the wiki UI unusable (by emitting a Server Error),
             # thus, in case of exceptions, we just log the problem and return
             # some standard text.
-            logging.exception("Macro {0} raised an exception:".format(name))
-            elem_error.append(_('<<%(macro_name)s: execution failed [%(error_msg)s] (see also the log)>>',
-                              macro_name=name, error_msg=str(e), ))
+            logging.exception(f"Macro {name} raised an exception:")
+            elem_error.append(
+                _("<<{macro_name}: execution failed [{error_msg}] (see also the log)>>").format(
+                    macro_name=name, error_msg=str(e)
+                )
+            )
 
         if len(elem_body):
             elem.append(elem_body)
@@ -82,8 +86,7 @@ class Converter:
 
         for child in elem:
             if isinstance(child, ET.Node):
-                for i in self.recurse(child, page):
-                    yield i
+                yield from self.recurse(child, page)
 
     def __call__(self, tree):
         for elem, page in self.recurse(tree, None):

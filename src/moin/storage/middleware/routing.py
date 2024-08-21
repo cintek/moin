@@ -17,6 +17,7 @@ class Backend(MutableBackendBase):
     """
     namespace dispatcher, behaves readonly for readonly mounts
     """
+
     def __init__(self, namespaces, backends):
         """
         Initialize.
@@ -79,9 +80,9 @@ class Backend(MutableBackendBase):
         fq_name = fq_names[0]
         for namespace, backend_name in self.namespaces:
             if fq_name.startswith(namespace):
-                item_names = [_fq_name[len(namespace):] for _fq_name in fq_names]
-                return backend_name, item_names, namespace.rstrip(':')
-        raise AssertionError("No backend found for {0!r}. Namespaces: {1!r}".format(fq_name, self.namespaces))
+                item_names = [_fq_name[len(namespace) :] for _fq_name in fq_names]
+                return backend_name, item_names, namespace.rstrip(":")
+        raise AssertionError(f"No backend found for {fq_name!r}. Namespaces: {self.namespaces!r}")
 
     def __iter__(self):
         # Note: yields enough information so we can retrieve the revision from
@@ -119,15 +120,15 @@ class Backend(MutableBackendBase):
                 meta[NAMESPACE] = namespace
                 meta[NAME] = item_names
             else:
-                raise ValueError('can not determine namespace: empty NAME list, no NAMESPACE metadata present')
+                raise ValueError("can not determine namespace: empty NAME list, no NAMESPACE metadata present")
         else:
             if namespace:
-                namespace += ':'  # needed for _get_backend
+                namespace += ":"  # needed for _get_backend
             backend_name, _, _ = self._get_backend([namespace])
         backend = self.backends[backend_name]
 
         if not isinstance(backend, MutableBackendBase):
-            raise TypeError('backend {0} is readonly!'.format(backend_name))
+            raise TypeError(f"backend {backend_name} is readonly!")
 
         revid = backend.store(meta, data)
 
@@ -139,5 +140,5 @@ class Backend(MutableBackendBase):
     def remove(self, backend_name, revid, destroy_data):
         backend = self.backends[backend_name]
         if not isinstance(backend, MutableBackendBase):
-            raise TypeError('backend {0} is readonly'.format(backend_name))
+            raise TypeError(f"backend {backend_name} is readonly")
         backend.remove(revid, destroy_data)

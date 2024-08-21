@@ -16,6 +16,7 @@ from . import default_registry
 from ._table import TableMixin
 
 from moin.i18n import _
+from moin.utils import utcfromtimestamp
 from moin.utils.iri import Iri
 from moin.utils.tree import moin_page, xlink
 from moin.utils.mime import Type, type_moin_document
@@ -23,6 +24,7 @@ from moin.utils.interwiki import CompositeName
 from moin.constants.keys import NAME, NAMESPACE, NAME_EXACT
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
@@ -37,19 +39,19 @@ class ArchiveConverter(TableMixin):
     Base class for archive converters, convert an archive to a DOM table
     with an archive listing.
     """
+
     @classmethod
     def _factory(cls, input, output, **kw):
         return cls()
 
     def process_name(self, member_name):
         attrib = {
-            xlink.href: Iri(scheme='wiki', authority='', path='/' + self.fullname,
-                            query='do=get&member={0}'.format(member_name)),
+            xlink.href: Iri(scheme="wiki", authority="", path="/" + self.fullname, query=f"do=get&member={member_name}")
         }
-        return moin_page.a(attrib=attrib, children=[member_name, ])
+        return moin_page.a(attrib=attrib, children=[member_name])
 
     def process_datetime(self, dt):
-        return str(dt.isoformat(' '))
+        return str(dt.isoformat(" "))
 
     def process_size(self, size):
         return str(size)
@@ -59,13 +61,13 @@ class ArchiveConverter(TableMixin):
         self.fullname = fqname.fullname
         try:
             contents = self.list_contents(rev.data)
-            contents = [(self.process_size(size),
-                         self.process_datetime(dt),
-                         self.process_name(name),
-                         ) for size, dt, name in contents]
-            table = self.build_dom_table(contents, head=[_("Size"), _("Timestamp"), _("Name")], cls='zebra')
-            body = moin_page.body(children=(table, ))
-            return moin_page.page(children=(body, ))
+            contents = [
+                (self.process_size(size), self.process_datetime(dt), self.process_name(name))
+                for size, dt, name in contents
+            ]
+            table = self.build_dom_table(contents, head=[_("Size"), _("Timestamp"), _("Name")], cls="zebra")
+            body = moin_page.body(children=(table,))
+            return moin_page.page(children=(body,))
         except ArchiveException as err:
             logging.exception("An exception within archive file handling occurred:")
             # XXX we also use a table for error reporting, could be
@@ -89,18 +91,15 @@ class TarConverter(ArchiveConverter):
     """
     Support listing tar files.
     """
+
     def list_contents(self, fileobj):
         try:
             rows = []
-            tf = tarfile.open(fileobj=fileobj, mode='r')
+            tf = tarfile.open(fileobj=fileobj, mode="r")
             for tinfo in tf.getmembers():
                 if tinfo.isfile():
                     # display only normal files, not directories
-                    rows.append((
-                        tinfo.size,
-                        datetime.utcfromtimestamp(tinfo.mtime),
-                        tinfo.name,
-                    ))
+                    rows.append((tinfo.size, utcfromtimestamp(tinfo.mtime), tinfo.name))
             return rows
         except tarfile.TarError as err:
             raise ArchiveException(str(err))
@@ -110,18 +109,15 @@ class ZipConverter(ArchiveConverter):
     """
     Support listing zip files.
     """
+
     def list_contents(self, fileobj):
         try:
             rows = []
-            zf = zipfile.ZipFile(fileobj, mode='r')
+            zf = zipfile.ZipFile(fileobj, mode="r")
             for zinfo in zf.filelist:
-                if not (zinfo.file_size == 0 and zinfo.filename.endswith('/')):
+                if not (zinfo.file_size == 0 and zinfo.filename.endswith("/")):
                     # display only normal files, not directories
-                    rows.append((
-                        zinfo.file_size,
-                        datetime(*zinfo.date_time),  # y,m,d,h,m,s
-                        zinfo.filename,
-                    ))
+                    rows.append((zinfo.file_size, datetime(*zinfo.date_time), zinfo.filename))  # y,m,d,h,m,s
             return rows
         except (RuntimeError, zipfile.BadZipfile) as err:
             # RuntimeError is raised by zipfile stdlib module in case of
@@ -130,6 +126,6 @@ class ZipConverter(ArchiveConverter):
             raise ArchiveException(str(err))
 
 
-default_registry.register(TarConverter._factory, Type('application/x-tar'), type_moin_document)
-default_registry.register(TarConverter._factory, Type('application/x-gtar'), type_moin_document)
-default_registry.register(ZipConverter._factory, Type('application/zip'), type_moin_document)
+default_registry.register(TarConverter._factory, Type("application/x-tar"), type_moin_document)
+default_registry.register(TarConverter._factory, Type("application/x-gtar"), type_moin_document)
+default_registry.register(ZipConverter._factory, Type("application/zip"), type_moin_document)

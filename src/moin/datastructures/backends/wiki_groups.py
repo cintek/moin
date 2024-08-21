@@ -25,7 +25,7 @@ class WikiGroup(GreedyGroup):
     def _load_group(self):
         group_name = self.name
         if flaskg.unprotected_storage.has_item(group_name):
-            members, member_groups = super(WikiGroup, self)._load_group()
+            members, member_groups = super()._load_group()
             return members, member_groups
         else:
             raise GroupDoesNotExistError(group_name)
@@ -41,8 +41,11 @@ class WikiGroups(BaseGroupsBackend):
         To find group pages, app.cfg.cache.item_group_regexact pattern is used.
         """
         # TODO: use whoosh to search for group_regex matching items
-        item_list = [rev.fqname.value for rev in flaskg.unprotected_storage.documents()
-                     if self.item_group_regex.search(rev.fqname.value)]
+        item_list = [
+            rev.fqname.value
+            for rev in flaskg.unprotected_storage.documents()
+            if self.item_group_regex.search(rev.fqname.value)
+        ]
         return iter(item_list)
 
     def __getitem__(self, group_name):

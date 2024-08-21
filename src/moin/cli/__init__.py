@@ -1,6 +1,6 @@
 # Copyright: 2000-2002 Juergen Hermann <jh@web.de>
 # Copyright: 2006,2011 MoinMoin:ThomasWaldmann
-# Copyright: 2023 MoinMoin project
+# Copyright: 2023-2024 MoinMoin:UlrichB
 # License: GNU GPL v2 (or any later version), see LICENSE.txt for details.
 
 """
@@ -18,12 +18,14 @@ from moin.cli.account import create, disable, resetpw
 from moin.cli.migration.moin19 import import19
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
 def Help():
-    """ Moin initial help"""
-    print("""\
+    """Moin initial help"""
+    print(
+        """\
 Quick help / most important commands overview:
 
   moin create-instance  # Create wikiconfig and wiki instance directories
@@ -42,21 +44,22 @@ For more information please run:
   moin <subcommand> --help
 
 or read the Docs at https://moin-20.readthedocs.io/
-""")
+"""
+    )
 
 
 # @click.option('--config', required=False, default=None)
 @click.group(cls=FlaskGroup, create_app=create_app, invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
-    """ Moin extensions to the Flask CLI"""
+    """Moin extensions to the Flask CLI"""
     logging.debug("invoked_subcommand: %s", ctx.invoked_subcommand)
     if ctx.invoked_subcommand is None:
         Help()
     sys.stdout.reconfigure(encoding="utf-8")
 
 
-@cli.command('help', help='Quick help')
+@cli.command("help", help="Quick help")
 def _Help():
     Help()
 
@@ -74,7 +77,6 @@ cli.add_command(index.IndexDump)
 
 cli.add_command(serialization.Serialize)
 cli.add_command(serialization.Deserialize)
-cli.add_command(serialization.LoadSample)
 
 cli.add_command(dump_html.Dump)
 

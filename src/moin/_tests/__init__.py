@@ -12,7 +12,6 @@ import socket
 from io import BytesIO
 from pathlib import Path
 import psutil
-from typing import Tuple
 
 from flask import g as flaskg
 
@@ -30,55 +29,56 @@ from moin.utils.interwiki import CompositeName
 
 
 def become_valid(username="ValidUser"):
-    """ modify flaskg.user to make the user valid.
-        Note that a valid user will only be in ACL special group "Known", if
-        we have a user profile for this user as the ACL system will check if
-        there is a userid for this username.
-        Thus, for testing purposes (e.g. if you need delete rights), it is
-        easier to use become_trusted().
+    """modify flaskg.user to make the user valid.
+    Note that a valid user will only be in ACL special group "Known", if
+    we have a user profile for this user as the ACL system will check if
+    there is a userid for this username.
+    Thus, for testing purposes (e.g. if you need delete rights), it is
+    easier to use become_trusted().
     """
-    flaskg.user.profile[NAME] = [username, ]
-    flaskg.user.may.names = [username, ]  # see security.DefaultSecurityPolicy class
+    flaskg.user.profile[NAME] = [username]
+    flaskg.user.may.names = [username]  # see security.DefaultSecurityPolicy class
     flaskg.user.valid = 1
 
 
 def become_trusted(username="TrustedUser"):
-    """ modify flaskg.user to make the user valid and trusted, so it is in acl group Trusted """
+    """modify flaskg.user to make the user valid and trusted, so it is in acl group Trusted"""
     become_valid(username)
     flaskg.user.trusted = True
 
 
 # Creating and destroying test items --------------------------------
 
+
 def update_item(name, meta, data):
-    """ creates or updates an item  """
+    """creates or updates an item"""
     if isinstance(data, str):
         data = data.encode(CHARSET)
-    fqname = CompositeName('', NAME_EXACT, name)
+    fqname = CompositeName("", NAME_EXACT, name)
     item = flaskg.storage.get_item(**fqname.query)
 
     meta = meta.copy()
     if NAME not in meta:
-        meta[NAME] = [name, ]
+        meta[NAME] = [name]
     if CONTENTTYPE not in meta:
-        meta[CONTENTTYPE] = 'application/octet-stream'
+        meta[CONTENTTYPE] = "application/octet-stream"
     rev = item.store_revision(meta, BytesIO(data), return_rev=True)
     return rev
 
 
 def create_random_string_list(length=14, count=10):
-    """ creates a list of random strings """
-    chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    return ["{0}".format(random_string(length, chars)) for counter in range(count)]
+    """creates a list of random strings"""
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return [f"{random_string(length, chars)}" for counter in range(count)]
 
 
 def nuke_item(name):
-    """ complete destroys an item """
+    """complete destroys an item"""
     item = Item.create(name)
     item.destroy()
 
 
-def check_connection(port, host='127.0.0.1'):
+def check_connection(port, host="127.0.0.1"):
     """
     Check if we can make a connection to host:port.
 
@@ -88,11 +88,11 @@ def check_connection(port, host='127.0.0.1'):
         s = socket.create_connection((host, port))
         s.shutdown(socket.SHUT_RDWR)
         s.close()
-    except socket.error as err:
-        raise Exception("connecting to {0}:{1:d}, error: {2!s}".format(host, port, err))
+    except OSError as err:
+        raise Exception(f"connecting to {host}:{port:d}, error: {err!s}")
 
 
-def get_dirs(subdir: str) -> Tuple[Path, Path]:
+def get_dirs(subdir: str) -> tuple[Path, Path]:
     """return Paths for directories used in tests creating artifacts_dir if needed
 
     :param subdir: subdirectory for artifacts_dir
@@ -101,7 +101,7 @@ def get_dirs(subdir: str) -> Tuple[Path, Path]:
               and artifacts_dir is Path to moin/_test_artifacts/{subdir}"""
     my_dir = Path(__file__).parent.resolve()
     moin_dir = my_dir.parents[2]
-    artifacts_dir = moin_dir / '_test_artifacts' / subdir
+    artifacts_dir = moin_dir / "_test_artifacts" / subdir
     if not artifacts_dir.exists():
         artifacts_dir.mkdir(parents=True)
     return moin_dir, artifacts_dir
@@ -109,7 +109,7 @@ def get_dirs(subdir: str) -> Tuple[Path, Path]:
 
 def get_open_wiki_files():
     proc = psutil.Process()
-    files = [f for f in proc.open_files() if 'wiki' in f.path]
+    files = [f for f in proc.open_files() if "wiki" in f.path]
     for file in files:
-        print(f'open wiki {file}')
+        print(f"open wiki {file}")
     return files

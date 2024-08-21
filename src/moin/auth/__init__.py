@@ -3,7 +3,7 @@
 # Copyright: MoinMoin:FrankieChow, MoinMoin:NirSoffer
 # Copyright: 2005-2012 MoinMoin:ThomasWaldmann
 # Copyright: 2007      MoinMoin:JohannesBerg
-# Copyright: 2023      MoinMoin project
+# Copyright: 2023-2024 MoinMoin:UlrichB
 # License: GNU GPL v2 (or any later version), see LICENSE.txt for details.
 
 """
@@ -147,6 +147,7 @@ from moin import user
 from moin.i18n import _
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
@@ -165,16 +166,15 @@ def get_multistage_continuation_url(auth_name, extra_fields={}):
     # live in auth so people do auth.get_multistage_continuation_url()
 
     # the url should be absolute so we use _external
-    url = url_for('frontend.login', login_submit='1', stage=auth_name, _external=True, **extra_fields)
-    logging.debug("multistage_continuation_url: {0}".format(url))
+    url = url_for("frontend.login", login_submit="1", stage=auth_name, _external=True, **extra_fields)
+    logging.debug(f"multistage_continuation_url: {url}")
     return url
 
 
 class LoginReturn:
     """LoginReturn - base class for auth method login() return value"""
 
-    def __init__(self, user_obj, continue_flag, message=None, multistage=None,
-                 redirect_to=None):
+    def __init__(self, user_obj, continue_flag, message=None, multistage=None, redirect_to=None):
         self.user_obj = user_obj
         self.continue_flag = continue_flag
         self.message = message
@@ -183,27 +183,29 @@ class LoginReturn:
 
 
 class ContinueLogin(LoginReturn):
-    """ ContinueLogin - helper for auth method login that just continues """
+    """ContinueLogin - helper for auth method login that just continues"""
+
     def __init__(self, user_obj, message=None):
         LoginReturn.__init__(self, user_obj, True, message=message)
 
 
 class CancelLogin(LoginReturn):
-    """ CancelLogin - cancel login showing a message """
+    """CancelLogin - cancel login showing a message"""
 
     def __init__(self, message):
         LoginReturn.__init__(self, None, False, message=message)
 
 
 class MultistageFormLogin(LoginReturn):
-    """ MultistageFormLogin - require user to fill in another form """
+    """MultistageFormLogin - require user to fill in another form"""
 
     def __init__(self, multistage):
         LoginReturn.__init__(self, None, False, multistage=multistage)
 
 
 class MultistageRedirectLogin(LoginReturn):
-    """ MultistageRedirectLogin - redirect user to another site before continuing login """
+    """MultistageRedirectLogin - redirect user to another site before continuing login"""
+
     def __init__(self, url):
         LoginReturn.__init__(self, None, False, redirect_to=url)
 
@@ -216,7 +218,7 @@ class BaseAuth:
     def __init__(self, trusted=False, **kw):
         self.trusted = trusted
         if kw:
-            raise TypeError("got unexpected arguments %r" % kw)
+            raise TypeError(f"got unexpected arguments {kw!r}")
 
     def login(self, user_obj, **kw):
         return ContinueLogin(user_obj)
@@ -226,7 +228,7 @@ class BaseAuth:
 
     def logout(self, user_obj, **kw):
         if self.name and user_obj and user_obj.auth_method == self.name:
-            logging.debug("{0}: logout - invalidating user {1!r}".format(self.name, user_obj.name))
+            logging.debug(f"{self.name}: logout - invalidating user {user_obj.name!r}")
             user_obj.valid = False
         return user_obj, True
 
@@ -235,17 +237,18 @@ class BaseAuth:
 
 
 class MoinAuth(BaseAuth):
-    """ handle login from moin login form """
-    def __init__(self, **kw):
-        super(MoinAuth, self).__init__(**kw)
+    """handle login from moin login form"""
 
-    login_inputs = ['username', 'password']
-    name = 'moin'
+    def __init__(self, **kw):
+        super().__init__(**kw)
+
+    login_inputs = ["username", "password"]
+    name = "moin"
     logout_possible = True
 
     def login(self, user_obj, **kw):
-        username = kw.get('username')
-        password = kw.get('password')
+        username = kw.get("username")
+        password = kw.get("password")
 
         # simply continue if something else already logged in successfully
         if user_obj and user_obj.valid:
@@ -254,52 +257,54 @@ class MoinAuth(BaseAuth):
         if not username and not password:
             return ContinueLogin(user_obj)
 
-        logging.debug("{0}: performing login action".format(self.name))
+        logging.debug(f"{self.name}: performing login action")
 
         if username and not password:
-            return ContinueLogin(user_obj, _('Missing password. Please enter user name and password.'))
+            return ContinueLogin(user_obj, _("Missing password. Please enter user name and password."))
 
         u = user.User(name=username, password=password, auth_method=self.name, trusted=self.trusted)
         if u.valid:
-            logging.debug("{0}: successfully authenticated user {1!r} (valid)".format(self.name, u.name))
+            logging.debug(f"{self.name}: successfully authenticated user {u.name!r} (valid)")
             return ContinueLogin(u)
         else:
-            logging.debug("{0}: could not authenticate user {1!r} (not valid)".format(self.name, username))
+            logging.debug(f"{self.name}: could not authenticate user {username!r} (not valid)")
             return ContinueLogin(user_obj, _("Invalid username or password."))
 
     def login_hint(self):
         if app.cfg.registration_only_by_superuser:
-            msg = app.cfg.registration_hint + ' '
+            msg = app.cfg.registration_hint + " "
         else:
-            msg = _('If you do not have an account, <a href="%(register_url)s">you can create one now</a>. ',
-                    register_url=url_for('frontend.register'))
-        msg += _('<a href="%(recover_url)s">Forgot your password?</a>',
-                 recover_url=url_for('frontend.lostpass'))
+            msg = _('If you do not have an account, <a href="{register_url}">you can create one now</a>. ').format(
+                register_url=url_for("frontend.register")
+            )
+        msg += _('<a href="{recover_url}">Forgot your password?</a>').format(recover_url=url_for("frontend.lostpass"))
         return Markup(msg)
 
 
 class GivenAuth(BaseAuth):
-    """ reuse a given authentication, e.g. http basic auth (or any other auth)
-        done by the web server, that sets REMOTE_USER environment variable.
-        This is the default behaviour.
-        You can also specify to read another environment variable (env_var).
-        Alternatively you can directly give a fixed user name (user_name)
-        that will be considered as authenticated.
+    """reuse a given authentication, e.g. http basic auth (or any other auth)
+    done by the web server, that sets REMOTE_USER environment variable.
+    This is the default behaviour.
+    You can also specify to read another environment variable (env_var).
+    Alternatively you can directly give a fixed user name (user_name)
+    that will be considered as authenticated.
     """
-    name = 'given'  # was 'http' in 1.8.x and before
 
-    def __init__(self,
-                 env_var=None,  # environment variable we want to read (default: REMOTE_USER)
-                 user_name=None,  # can be used to just give a specific user name to log in
-                 autocreate=False,  # create/update the user profile for the auth. user
-                 strip_maildomain=False,  # joe@example.org -> joe
-                 strip_windomain=False,  # DOMAIN\joe -> joe
-                 titlecase=False,  # joe doe -> Joe Doe
-                 remove_blanks=False,  # Joe Doe -> JoeDoe
-                 coding='utf-8',  # for decoding REMOTE_USER correctly
-                 **kw
-                 ):
-        super(GivenAuth, self).__init__(**kw)
+    name = "given"  # was 'http' in 1.8.x and before
+
+    def __init__(
+        self,
+        env_var=None,  # environment variable we want to read (default: REMOTE_USER)
+        user_name=None,  # can be used to just give a specific user name to log in
+        autocreate=False,  # create/update the user profile for the auth. user
+        strip_maildomain=False,  # joe@example.org -> joe
+        strip_windomain=False,  # DOMAIN\joe -> joe
+        titlecase=False,  # joe doe -> Joe Doe
+        remove_blanks=False,  # Joe Doe -> JoeDoe
+        coding="utf-8",  # for decoding REMOTE_USER correctly
+        **kw,
+    ):
+        super().__init__(**kw)
         self.env_var = env_var
         self.user_name = user_name
         self.autocreate = autocreate
@@ -310,25 +315,25 @@ class GivenAuth(BaseAuth):
         self.coding = coding
 
     def decode_username(self, name):
-        """ decode the name we got from the environment var to unicode """
+        """decode the name we got from the environment var to unicode"""
         if isinstance(name, bytes):
             name = name.decode(self.coding)
         return name
 
     def transform_username(self, name):
-        """ transform the name we got (unicode in, unicode out)
+        """transform the name we got (unicode in, unicode out)
 
-            Note: if you need something more special, you could create your own
-                  auth class, inherit from this class and overwrite this function.
+        Note: if you need something more special, you could create your own
+              auth class, inherit from this class and overwrite this function.
         """
         assert isinstance(name, str)
         if self.strip_maildomain:
             # split off mail domain, e.g. "user@example.org" -> "user"
-            name = name.split('@')[0]
+            name = name.split("@")[0]
 
         if self.strip_windomain:
             # split off window domain, e.g. "DOMAIN\user" -> "user"
-            name = name.split('\\')[-1]
+            name = name.split("\\")[-1]
 
         if self.titlecase:
             # this "normalizes" the login name, e.g. meier, Meier, MEIER -> Meier
@@ -336,7 +341,7 @@ class GivenAuth(BaseAuth):
 
         if self.remove_blanks:
             # remove blanks e.g. "Joe Doe" -> "JoeDoe"
-            name = ''.join(name.split())
+            name = "".join(name.split())
 
         return name
 
@@ -357,23 +362,27 @@ class GivenAuth(BaseAuth):
         else:
             auth_username = request.environ.get(self.env_var)
 
-        logging.debug("auth_username = {0!r}".format(auth_username))
+        logging.debug(f"auth_username = {auth_username!r}")
         if auth_username:
             auth_username = self.decode_username(auth_username)
             auth_username = self.transform_username(auth_username)
-            logging.debug("auth_username (after decode/transform) = {0!r}".format(auth_username))
-            u = user.User(auth_username=auth_username,
-                          auth_method=self.name, auth_attribs=('name', 'password'), trusted=self.trusted)
+            logging.debug(f"auth_username (after decode/transform) = {auth_username!r}")
+            u = user.User(
+                auth_username=auth_username,
+                auth_method=self.name,
+                auth_attribs=("name", "password"),
+                trusted=self.trusted,
+            )
 
-        logging.debug("u: {0!r}".format(u))
+        logging.debug(f"u: {u!r}")
         if u and self.autocreate:
             logging.debug("autocreating user")
             u.create_or_update()
         if u and u.valid:
-            logging.debug("returning valid user {0!r}".format(u))
+            logging.debug(f"returning valid user {u!r}")
             return u, True  # True to get other methods called, too
         else:
-            logging.debug("returning {0!r}".format(user_obj))
+            logging.debug(f"returning {user_obj!r}")
             return user_obj, True
 
 
@@ -384,12 +393,13 @@ def handle_login(userobj, **kw):
     detail at the top of this file.
     """
 
-    stage = kw.get('stage')
-    params = {'username': kw.get('login_username'),
-              'password': kw.get('login_password'),
-              'multistage': (stage and True) or None,
-              'attended': True
-              }
+    stage = kw.get("stage")
+    params = {
+        "username": kw.get("login_username"),
+        "password": kw.get("login_password"),
+        "multistage": (stage and True) or None,
+        "attended": True,
+    }
     # add the other parameters from the form
     for param in kw.keys():
         params[param] = kw.get(param)
@@ -403,7 +413,7 @@ def handle_login(userobj, **kw):
         cont = ret.continue_flag
         if stage:
             stage = None
-            del params['multistage']
+            del params["multistage"]
 
         if ret.multistage:
             flaskg._login_multistage = ret.multistage
@@ -413,8 +423,8 @@ def handle_login(userobj, **kw):
         if ret.redirect_to:
             nextstage = get_multistage_continuation_url(authmethod.name)
             url = ret.redirect_to
-            url = url.replace('%return_form', quote_plus(nextstage))
-            url = url.replace('%return', quote(nextstage))
+            url = url.replace("%return_form", quote_plus(nextstage))
+            url = url.replace("%return", quote(nextstage))
             abort(redirect(url))
         msg = ret.message
         if msg and msg not in flaskg._login_messages:
@@ -427,7 +437,7 @@ def handle_login(userobj, **kw):
 
 
 def handle_logout(userobj):
-    """ Logout the passed user from every configured authentication method. """
+    """Logout the passed user from every configured authentication method."""
     if userobj is None:
         # not logged in
         return userobj
@@ -440,7 +450,7 @@ def handle_logout(userobj):
 
 
 def handle_request(userobj):
-    """ Handle the per-request callbacks of the configured authentication methods. """
+    """Handle the per-request callbacks of the configured authentication methods."""
     for authmethod in app.cfg.auth:
         userobj, cont = authmethod.request(userobj)
         if not cont:
@@ -450,24 +460,21 @@ def handle_request(userobj):
 
 def setup_from_session():
     userobj = None
-    if 'user.itemid' in session:
-        itemid = session['user.itemid']
-        trusted = session['user.trusted']
-        auth_method = session['user.auth_method']
-        auth_attribs = session['user.auth_attribs']
-        session_token = session['user.session_token']
-        logging.debug("got from session: {0!r} {1!r} {2!r} {3!r}".format(itemid, trusted, auth_method, auth_attribs))
-        logging.debug("current auth methods: {0!r}".format(app.cfg.auth_methods))
+    if "user.itemid" in session:
+        itemid = session["user.itemid"]
+        trusted = session["user.trusted"]
+        auth_method = session["user.auth_method"]
+        auth_attribs = session["user.auth_attribs"]
+        session_token = session["user.session_token"]
+        logging.debug(f"got from session: {itemid!r} {trusted!r} {auth_method!r} {auth_attribs!r}")
+        logging.debug(f"current auth methods: {app.cfg.auth_methods!r}")
         if auth_method and auth_method in app.cfg.auth_methods:
-            userobj = user.User(itemid,
-                                auth_method=auth_method,
-                                auth_attribs=auth_attribs,
-                                trusted=trusted)
+            userobj = user.User(itemid, auth_method=auth_method, auth_attribs=auth_attribs, trusted=trusted)
             if not userobj.validate_session(session_token):
                 logging.debug("session token doesn't validate")
                 # Destroy current session since it's no longer valid.
                 userobj.logout_session(False)
                 # We didn't find user in session data.
                 userobj = None
-    logging.debug("session started for user {0!r}".format(userobj))
+    logging.debug(f"session started for user {userobj!r}")
     return userobj

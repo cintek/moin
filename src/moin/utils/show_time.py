@@ -1,7 +1,6 @@
 # Copyright: 2019 MoinMoin:RogerHaase
 # License: GNU GPL v2 (or any later version), see LICENSE.txt for details.
 
-import datetime
 import pytz
 
 from flask import g as flaskg
@@ -9,6 +8,7 @@ import flask_babel
 
 from moin.i18n import _
 from moin import i18n
+from moin.utils import utcfromtimestamp, utcnow
 
 
 def duration(seconds):
@@ -34,7 +34,7 @@ def duration(seconds):
     return _("years"), (seconds + 15768000) // 31536000
 
 
-def format_date_time(utc_dt=None, fmt='yyyy-MM-dd HH:mm:ss', interval='datetime'):
+def format_date_time(utc_dt=None, fmt="yyyy-MM-dd HH:mm:ss", interval="datetime"):
     """
     Add an ISO 8601 alternative to babel's date/time formatting.
 
@@ -52,32 +52,32 @@ def format_date_time(utc_dt=None, fmt='yyyy-MM-dd HH:mm:ss', interval='datetime'
     See https://babel.pocoo.org/en/latest/dates.html#date-fields for babel format syntax.
     """
     if utc_dt is None:
-        utc_dt = datetime.datetime.utcnow()
+        utc_dt = utcnow()
     elif isinstance(utc_dt, (float, int)):
-        utc_dt = datetime.datetime.utcfromtimestamp(utc_dt)
+        utc_dt = utcfromtimestamp(utc_dt)
 
     if not flaskg.user.valid:
         # users who are not logged-in get moin version of ISO 8601: 2019-07-15 07:08:09z
-        return flask_babel.format_datetime(utc_dt, fmt) + 'z'
+        return flask_babel.format_datetime(utc_dt, fmt) + "z"
 
     if flaskg.user.iso_8601:
-        suffix = ''
+        suffix = ""
         user_tz = i18n.get_timezone()
         if user_tz:
             if pytz.timezone(user_tz) == pytz.utc:
-                suffix = 'z'
+                suffix = "z"
         return flask_babel.format_datetime(utc_dt, fmt) + suffix
 
-    if interval == 'date':
+    if interval == "date":
         return flask_babel.format_date(utc_dt)
-    elif interval == 'time':
+    elif interval == "time":
         return flask_babel.format_time(utc_dt)
     return flask_babel.format_datetime(utc_dt)
 
 
-def format_date(utc_dt=None, fmt='yyyy-MM-dd', interval='date'):
+def format_date(utc_dt=None, fmt="yyyy-MM-dd", interval="date"):
     return format_date_time(utc_dt=utc_dt, fmt=fmt, interval=interval)
 
 
-def format_time(utc_dt=None, fmt='HH:mm:ss', interval='time'):
+def format_time(utc_dt=None, fmt="HH:mm:ss", interval="time"):
     return format_date_time(utc_dt=utc_dt, fmt=fmt, interval=interval)

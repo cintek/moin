@@ -24,15 +24,17 @@ from moin.i18n import _
 from moin.auth import BaseAuth
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
 class HTTPAuthMoin(BaseAuth):
-    """ authenticate via http (basic) auth """
-    name = 'http'
+    """authenticate via http (basic) auth"""
 
-    def __init__(self, trusted=True, autocreate=False, realm='MoinMoin', coding='utf-8', **kw):
-        super(HTTPAuthMoin, self).__init__(**kw)
+    name = "http"
+
+    def __init__(self, trusted=True, autocreate=False, realm="MoinMoin", coding="utf-8", **kw):
+        super().__init__(**kw)
         self.autocreate = autocreate
         self.realm = realm
         self.coding = coding
@@ -48,26 +50,26 @@ class HTTPAuthMoin(BaseAuth):
 
         auth = request.authorization
         if auth and auth.username and auth.password is not None:
-            logging.debug("http basic auth, received username: {0!r} password: {1!r}".format(
-                auth.username, auth.password))
-            u = user.User(name=auth.username, password=auth.password,
-                          auth_method=self.name, auth_attribs=[], trusted=self.trusted)
-            logging.debug("user: {0!r}".format(u))
+            logging.debug(f"http basic auth, received username: {auth.username!r} password: {auth.password!r}")
+            u = user.User(
+                name=auth.username, password=auth.password, auth_method=self.name, auth_attribs=[], trusted=self.trusted
+            )
+            logging.debug(f"user: {u!r}")
 
         if not u or not u.valid:
             from werkzeug import Response
             from werkzeug.exceptions import abort
-            response = Response(_('Please log in first.'), 401,
-                                {'WWW-Authenticate': 'Basic realm="{0}"'.format(self.realm)})
+
+            response = Response(_("Please log in first."), 401, {"WWW-Authenticate": f'Basic realm="{self.realm}"'})
             abort(response)
 
-        logging.debug("u: {0!r}".format(u))
+        logging.debug(f"u: {u!r}")
         if u and self.autocreate:
             logging.debug("autocreating user")
             u.create_or_update()
         if u and u.valid:
-            logging.debug("returning valid user {0!r}".format(u))
+            logging.debug(f"returning valid user {u!r}")
             return u, True  # True to get other methods called, too
         else:
-            logging.debug("returning {0!r}".format(user_obj))
+            logging.debug(f"returning {user_obj!r}")
             return user_obj, True

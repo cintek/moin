@@ -16,7 +16,7 @@ Selective Backup
 ================
 If you want a backup of MoinMoin and your data, then backup the following:
 
-* your data
+* your data, usually everything under wiki/
 * moin configuration, e.g. wikiconfig.py
 * logging configuration, e.g. logging.conf
 * moin deployment script, e.g. moin.wsgi
@@ -52,6 +52,4 @@ To load the backup file into your empty wiki, run::
 
  moin load --file backup.moin
 
-Then build an index of the loaded data::
-
- moin index-build
+The index is removed and automatically recreated by the load command.

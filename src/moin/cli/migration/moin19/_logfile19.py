@@ -13,17 +13,18 @@ import codecs
 import errno
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
-CHARSET = 'utf-8'
+CHARSET = "utf-8"
 
 
 class LogError(Exception):
-    """ Base class for log errors """
+    """Base class for log errors"""
 
 
 class LogMissing(LogError):
-    """ Raised when the log is missing """
+    """Raised when the log is missing"""
 
 
 class LineBuffer:
@@ -35,6 +36,7 @@ class LineBuffer:
     :ivar offsets: list of file offsets for each line. additionally the position
                    after the last read line is stored into self.offsets[-1]
     """
+
     def __init__(self, file, offset, size, forward=True):
         """
 
@@ -49,7 +51,7 @@ class LineBuffer:
         self.loglevel = logging.NOTSET
         if forward:
             begin = offset
-            logging.log(self.loglevel, "LineBuffer.init: forward seek {0} read {1}".format(begin, size))
+            logging.log(self.loglevel, f"LineBuffer.init: forward seek {begin} read {size}")
             file.seek(begin)
             lines = file.readlines(size)
         else:
@@ -58,7 +60,7 @@ class LineBuffer:
                 size = offset
             else:
                 begin = offset - size
-            logging.log(self.loglevel, "LineBuffer.init: backward seek {0} read {1}".format(begin, size))
+            logging.log(self.loglevel, f"LineBuffer.init: backward seek {begin} read {size}")
             file.seek(begin)
             lines = file.read(size).splitlines(True)
             if begin != 0:
@@ -112,26 +114,26 @@ class LogFile:
         return self
 
     def reverse(self):
-        """ yield log entries in reverse direction starting from last one
+        """yield log entries in reverse direction starting from last one
 
         :rtype: iterator
         """
         self.to_end()
         while True:
             try:
-                logging.log(self.loglevel, "LogFile.reverse {0}".format(self.__filename))
+                logging.log(self.loglevel, f"LogFile.reverse {self.__filename}")
                 result = self.previous()
             except StopIteration:
                 return
             yield result
 
     def sanityCheck(self):
-        """ Check for log file write access.
+        """Check for log file write access.
 
         :rtype: string (error message) or None
         """
         if not os.access(self.__filename, os.W_OK):
-            return "The log '{0}' is not writable!".format(self.__filename)
+            return f"The log '{self.__filename}' is not writable!"
         return None
 
     def __getattr__(self, name):
@@ -141,9 +143,7 @@ class LogFile:
         if name == "_LogFile__rel_index":  # Python black magic: this is the real name of the __rel_index attribute
             # starting iteration from begin
             self.__buffer1 = LineBuffer(self._input, 0, self.buffer_size)
-            self.__buffer2 = LineBuffer(self._input,
-                                        self.__buffer1.offsets[-1],
-                                        self.buffer_size)
+            self.__buffer2 = LineBuffer(self._input, self.__buffer1.offsets[-1], self.buffer_size)
             self.__buffer = self.__buffer1
             self.__rel_index = 0
             return 0
@@ -151,29 +151,28 @@ class LogFile:
             try:
                 # Open the file (NOT using codecs.open, it breaks our offset calculation. We decode it later.).
                 # Use binary mode in order to retain \r - otherwise the offset calculation would fail.
-                self._input = open(self.__filename, "rb", )
-            except IOError as err:
+                self._input = open(self.__filename, "rb")
+            except OSError as err:
                 if err.errno == errno.ENOENT:  # "file not found"
                     # XXX workaround if edit-log does not exist: just create it empty
                     # if this workaround raises another error, we don't catch
                     # it, so the admin will see it.
                     f = open(self.__filename, "ab")
-                    f.write('')
+                    f.write("")
                     f.close()
-                    self._input = open(self.__filename, "rb", )
+                    self._input = open(self.__filename, "rb")
                 else:
-                    logging.error("logfile: {0!r} IOERROR errno {1} ({2})".format(self.__filename,
-                                                                                  err.errno, os.strerror(err.errno)))
+                    logging.error(f"logfile: {self.__filename!r} IOERROR errno {err.errno} ({os.strerror(err.errno)})")
                     raise
             return self._input
         elif name == "_output":
-            self._output = codecs.open(self.__filename, 'a', CHARSET)
+            self._output = codecs.open(self.__filename, "a", CHARSET)
             return self._output
         else:
             raise AttributeError(name)
 
     def size(self):
-        """ Return log size in bytes
+        """Return log size in bytes
 
         Return 0 if the file does not exist. Raises other OSError.
 
@@ -188,7 +187,7 @@ class LogFile:
             raise
 
     def lines(self):
-        """ Return number of lines in the log file
+        """Return number of lines in the log file
 
         Return 0 if the file does not exist. Raises other OSError.
 
@@ -198,7 +197,7 @@ class LogFile:
         :rtype: Int
         """
         try:
-            f = open(self.__filename, 'r')
+            f = open(self.__filename)
             try:
                 count = 0
                 for line in f:
@@ -206,13 +205,13 @@ class LogFile:
                 return count
             finally:
                 f.close()
-        except (OSError, IOError) as err:
+        except OSError as err:
             if err.errno == errno.ENOENT:
                 return 0
             raise
 
     def peek(self, lines):
-        """ Move position in file forward or backwards by "lines" count
+        """Move position in file forward or backwards by "lines" count
 
         It adjusts .__lineno if set.
         This function is not aware of filters!
@@ -222,7 +221,7 @@ class LogFile:
         :returns: True if moving more than to the beginning and moving
                  to the end or beyond
         """
-        logging.log(self.loglevel, "LogFile.peek {0}".format(self.__filename))
+        logging.log(self.loglevel, f"LogFile.peek {self.__filename}")
         self.__rel_index += lines
         while self.__rel_index < 0:
             if self.__buffer is self.__buffer2:
@@ -244,10 +243,7 @@ class LogFile:
                 else:
                     # load previous lines
                     self.__buffer2 = self.__buffer1
-                    self.__buffer1 = LineBuffer(self._input,
-                                                self.__buffer.offsets[0],
-                                                self.buffer_size,
-                                                forward=False)
+                    self.__buffer1 = LineBuffer(self._input, self.__buffer.offsets[0], self.buffer_size, forward=False)
                     self.__buffer = self.__buffer1
                     self.__rel_index += self.__buffer.len
 
@@ -258,13 +254,11 @@ class LogFile:
                 self.__buffer = self.__buffer2
             else:  # self.__buffer is self.__buffer2
                 # try to load next buffer
-                tmpbuff = LineBuffer(self._input,
-                                     self.__buffer.offsets[-1],
-                                     self.buffer_size)
+                tmpbuff = LineBuffer(self._input, self.__buffer.offsets[-1], self.buffer_size)
                 if tmpbuff.len == 0:
                     # end of file
                     if self.__lineno is not None:
-                        self.__lineno += (lines - (self.__rel_index - self.__buffer.len))
+                        self.__lineno += lines - (self.__rel_index - self.__buffer.len)
                     self.__rel_index = self.__buffer.len  # point to after last read line
                     return True
                 # shift buffers
@@ -293,7 +287,7 @@ class LogFile:
         result = None
         while result is None:
             while result is None:
-                logging.log(self.loglevel, "LogFile.next {0}".format(self.__filename))
+                logging.log(self.loglevel, f"LogFile.next {self.__filename}")
                 result = self.__next()
             if self.filter and not self.filter(result):
                 result = None
@@ -315,7 +309,7 @@ class LogFile:
         result = None
         while result is None:
             while result is None:
-                logging.log(self.loglevel, "LogFile.previous {0}".format(self.__filename))
+                logging.log(self.loglevel, f"LogFile.previous {self.__filename}")
                 result = self.__previous()
             if self.filter and not self.filter(result):
                 result = None
@@ -323,39 +317,29 @@ class LogFile:
 
     def to_begin(self):
         """moves file position to the begin"""
-        logging.log(self.loglevel, "LogFile.to_begin {0}".format(self.__filename))
+        logging.log(self.loglevel, f"LogFile.to_begin {self.__filename}")
         if self.__buffer1 is None or self.__buffer1.offsets[0] != 0:
-            self.__buffer1 = LineBuffer(self._input,
-                                        0,
-                                        self.buffer_size)
-            self.__buffer2 = LineBuffer(self._input,
-                                        self.__buffer1.offsets[-1],
-                                        self.buffer_size)
+            self.__buffer1 = LineBuffer(self._input, 0, self.buffer_size)
+            self.__buffer2 = LineBuffer(self._input, self.__buffer1.offsets[-1], self.buffer_size)
         self.__buffer = self.__buffer1
         self.__rel_index = 0
         self.__lineno = 0
 
     def to_end(self):
         """moves file position to the end"""
-        logging.log(self.loglevel, "LogFile.to_end {0}".format(self.__filename))
+        logging.log(self.loglevel, f"LogFile.to_end {self.__filename}")
         self._input.seek(0, 2)  # to end of file
         size = self._input.tell()
         if self.__buffer2 is None or size > self.__buffer2.offsets[-1]:
-            self.__buffer2 = LineBuffer(self._input,
-                                        size,
-                                        self.buffer_size,
-                                        forward=False)
+            self.__buffer2 = LineBuffer(self._input, size, self.buffer_size, forward=False)
 
-            self.__buffer1 = LineBuffer(self._input,
-                                        self.__buffer2.offsets[0],
-                                        self.buffer_size,
-                                        forward=False)
+            self.__buffer1 = LineBuffer(self._input, self.__buffer2.offsets[0], self.buffer_size, forward=False)
         self.__buffer = self.__buffer2
         self.__rel_index = self.__buffer2.len
         self.__lineno = None
 
     def position(self):
-        """ Return the current file position
+        """Return the current file position
 
         This can be converted into a String using back-ticks and then be rebuild.
         For this plain file implementation position is an Integer.
@@ -363,16 +347,16 @@ class LogFile:
         return self.__buffer.offsets[self.__rel_index]
 
     def seek(self, position, line_no=None):
-        """ moves file position to an value formerly gotten from .position().
+        """moves file position to an value formerly gotten from .position().
         To enable line counting line_no must be provided.
         .seek is much more efficient for moving long distances than .peek.
         raises ValueError if position is invalid
         """
-        logging.log(self.loglevel, "LogFile.seek {0} pos {1}".format(self.__filename, position))
+        logging.log(self.loglevel, f"LogFile.seek {self.__filename} pos {position}")
         if self.__buffer1:
-            logging.log(self.loglevel, "b1 {0!r} {1!r}".format(self.__buffer1.offsets[0], self.__buffer1.offsets[-1]))
+            logging.log(self.loglevel, f"b1 {self.__buffer1.offsets[0]!r} {self.__buffer1.offsets[-1]!r}")
         if self.__buffer2:
-            logging.log(self.loglevel, "b2 {0!r} {1!r}".format(self.__buffer2.offsets[0], self.__buffer2.offsets[-1]))
+            logging.log(self.loglevel, f"b2 {self.__buffer2.offsets[0]!r} {self.__buffer2.offsets[-1]!r}")
         if self.__buffer1 and self.__buffer1.offsets[0] <= position < self.__buffer1.offsets[-1]:
             # position is in .__buffer1
             self.__rel_index = self.__buffer1.offsets.index(position)
@@ -383,28 +367,19 @@ class LogFile:
             self.__buffer = self.__buffer2
         elif self.__buffer1 and self.__buffer1.offsets[-1] == position:
             # we already have one buffer directly before where we want to go
-            self.__buffer2 = LineBuffer(self._input,
-                                        position,
-                                        self.buffer_size)
+            self.__buffer2 = LineBuffer(self._input, position, self.buffer_size)
             self.__buffer = self.__buffer2
             self.__rel_index = 0
         elif self.__buffer2 and self.__buffer2.offsets[-1] == position:
             # we already have one buffer directly before where we want to go
             self.__buffer1 = self.__buffer2
-            self.__buffer2 = LineBuffer(self._input,
-                                        position,
-                                        self.buffer_size)
+            self.__buffer2 = LineBuffer(self._input, position, self.buffer_size)
             self.__buffer = self.__buffer2
             self.__rel_index = 0
         else:
             # load buffers around position
-            self.__buffer1 = LineBuffer(self._input,
-                                        position,
-                                        self.buffer_size,
-                                        forward=False)
-            self.__buffer2 = LineBuffer(self._input,
-                                        position,
-                                        self.buffer_size)
+            self.__buffer1 = LineBuffer(self._input, position, self.buffer_size, forward=False)
+            self.__buffer2 = LineBuffer(self._input, position, self.buffer_size)
             self.__buffer = self.__buffer2
             self.__rel_index = 0
             # XXX test for valid position
@@ -415,7 +390,7 @@ class LogFile:
         return self.__lineno
 
     def calculate_line_no(self):
-        """ Calculate the current line number from buffer offsets
+        """Calculate the current line number from buffer offsets
 
         If line number is unknown it is calculated by parsing the whole file.
         This may be expensive.
@@ -452,8 +427,8 @@ class LogFile:
         write on entry in the log file
         """
         if line is not None:
-            if line[-1] != '\n':
-                line += '\n'
+            if line[-1] != "\n":
+                line += "\n"
             self._output.write(line)
             self._output.close()  # does this maybe help against the
             # sporadic fedora wikis 160 \0 bytes in the edit-log?

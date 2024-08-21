@@ -17,27 +17,28 @@ class TestMacro:
     @pytest.fixture
     def test_dict(self):
         become_trusted()
-        wikidict = {"One": "1",
-                    "Two": "2"}
-        update_item('TestDict', {WIKIDICT: wikidict}, "This is a dict item.")
+        wikidict = {"One": "1", "Two": "2"}
+        update_item("TestDict", {WIKIDICT: wikidict}, "This is a dict item.")
 
         return "TestDict"
 
     def test_Macro(self, test_dict):
         macro_obj = Macro()
         arguments = [test_dict]
-        with pytest.raises(ValueError):
-            macro_obj.macro('content', arguments, 'page_url', 'alternative')
+        result = macro_obj.macro("content", arguments, "page_url", "alternative")
+        attr = list(result.attrib.values())
+        # expecting error message with class of 'error nowiki'
+        assert "error" in attr[0]
 
         if not flaskg.user.may.read(arguments[0]):
             with pytest.raises(ValueError):
-                macro_obj.macro('content', arguments, 'page_url', 'alternative')
+                macro_obj.macro("content", arguments, "page_url", "alternative")
 
-        arguments = ['TestDict, One']
-        result = macro_obj.macro('content', arguments, 'page_url', 'alternative')
-        assert result == '1'
+        arguments = ["TestDict, One"]
+        result = macro_obj.macro("content", arguments, "page_url", "alternative")
+        assert result == "1"
 
         # change the value of second element
-        arguments = ['TestDict, Two']
-        result = macro_obj.macro('content', arguments, 'page_url', 'alternative')
-        assert result == '2'
+        arguments = ["TestDict, Two"]
+        result = macro_obj.macro("content", arguments, "page_url", "alternative")
+        assert result == "2"

@@ -15,7 +15,9 @@ by clicking the account creation button, and you will be presented with an accou
 The fields of this form are as follows:
 
 Name
- Your username on the wiki. Will appear in the history section of any wiki item which you edit. This is a required field.
+ Your username on the wiki.  Names must not contain "/",  ":", or "," characters, invisible unicode
+ characters, or leading or trailing whitespace characters. Embedded single space characters
+ are allowed.  This is a required field.
 
 Password
  Your password for logging into your new account. Remember to pick a strong password with a mix
@@ -52,14 +54,21 @@ wiki experience, each of these sub-pages are listed below:
 Personal Settings
 -----------------
 
-Personal settings include wiki language and locale, username and alias.
+Personal settings include wiki language and locale, name, alias and display-name.
 
 Name
- Your username, as it will appear on the wiki and in the history pages of wiki items which you edit.
+ Your username, as it will appear on the login form, the history pages of wiki items
+ which you edit, and in the footer of items you have edited. All of these places will be
+ rendered as links to your home page in the `users` namespace.
+ If desired, name may be a comma separated list of names. For example, if it is tedious
+ to type your long full name at login, you may create a short alias name: `JohnDoe, jd`.
+ Alias names are only useful at login.
 
 Display-Name
- The display name can be used to override your username, so you will still log in using your username
- but your display name will be displayed to other users and in your history page.
+ If your wiki has a custom auth method that creates cryptic user names, then
+ the display-name can be created as an alternative. You will still login using your username
+ or alias. The display-name will appear as links in history pages and the footer of items you have edited.
+ Use your display-name to create your home page in the users namespace.
 
 Timezone
  Setting this value will display edit times converted to your local time zone. For

@@ -24,6 +24,7 @@ from flask_babel import Babel, gettext, ngettext, lazy_gettext
 from flask.globals import request_ctx
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
@@ -33,45 +34,45 @@ L_ = lazy_gettext
 
 
 def i18n_init(app):
-    """ initialize Flask-Babel """
+    """initialize Flask-Babel"""
     Babel(app, locale_selector=get_locale, timezone_selector=get_timezone)
 
 
 def get_locale():
-    """ return the locale for the current user """
+    """return the locale for the current user"""
     locale = None
     # this might be called at a time when flaskg.user is not setup yet:
-    u = getattr(flaskg, 'user', None)
+    u = getattr(flaskg, "user", None)
     if u and u.locale is not None:
         # locale is given in user profile, use it
         locale = u.locale
-        logging.debug("user locale = {0!r}".format(locale))
+        logging.debug(f"user locale = {locale!r}")
     else:
         # try to guess the language from the user accept
         # header the browser transmits. The best match wins.
         cli_no_request_ctx = False
         try:
-            logging.debug("request.accept_languages = {0!r}".format(request.accept_languages))
+            logging.debug(f"request.accept_languages = {request.accept_languages!r}")
         except RuntimeError:  # CLI call has no valid request context
             cli_no_request_ctx = True
 
-        supported_locales = [Locale('en')] + current_app.extensions['babel'].instance.list_translations()
-        logging.debug("supported_locales = {0!r}".format(supported_locales))
+        supported_locales = [Locale("en")] + current_app.extensions["babel"].instance.list_translations()
+        logging.debug(f"supported_locales = {supported_locales!r}")
         supported_languages = [str(locale) for locale in supported_locales]
-        logging.debug("supported_languages = {0!r}".format(supported_languages))
+        logging.debug(f"supported_languages = {supported_languages!r}")
         if not cli_no_request_ctx:
-            locale = request.accept_languages.best_match(supported_languages, 'en')
-            logging.debug("best match locale = {0!r}".format(locale))
+            locale = request.accept_languages.best_match(supported_languages, "en")
+            logging.debug(f"best match locale = {locale!r}")
     if not locale:
         locale = current_app.cfg.locale_default
-        logging.debug("default locale = {0!r}".format(locale))
+        logging.debug(f"default locale = {locale!r}")
     return locale
 
 
 def get_timezone():
-    """ return the timezone for the current user """
+    """return the timezone for the current user"""
     # this might be called at a time when flaskg.user is not setup yet:
-    u = getattr(flaskg, 'user', None)
+    u = getattr(flaskg, "user", None)
     if u and u.timezone is not None:
         return u.timezone
 
@@ -94,10 +95,10 @@ def force_locale(locale):
     if ctx is None:
         yield
         return
-    babel = ctx.app.extensions['babel']
+    babel = ctx.app.extensions["babel"]
     orig_locale_selector = babel.locale_selector
     orig_attrs = {}
-    for key in ('babel_translations', 'babel_locale'):
+    for key in ("babel_translations", "babel_locale"):
         orig_attrs[key] = getattr(ctx, key, None)
     try:
         babel.locale_selector = lambda: locale

@@ -7,7 +7,7 @@
 {% block content %}
     <h1>{{ _("Advanced Search") }}</h1>
     <p>
-        <input type="search" name="meta_summary" value="" class="moin-search-query" placeholder="Search Tickets" required="required" />
+        <input type="search" name="meta_summary" value="" class="moin-search-query" placeholder="Search Tickets" required="required">
     </p>
     <div id="finalresults">
         {% include "ajaxsearch.html" %}
@@ -32,12 +32,12 @@
                 {% for result in ticket_results %}
                     <tr>
                         <td>
-                            <a href="{{ url_for_item(result['itemid'], field='itemid', namespace=result['namespace']) }}" title="{{ _('ITEMID: %(itemid)s', itemid=result['itemid']) }}">
+                            <a href="{{ url_for_item(result['itemid'], field='itemid', namespace=result['namespace']) }}" title="{{ _('ITEMID: {itemid}').format(itemid=result['itemid']) }}">
                                 {{ result['itemid'][:4] }}
                             </a>
                         </td>
                         <td>
-                            <a href="{{ url_for_item(result['itemid'], field='itemid', namespace=result['namespace']) }}" title="{{ _('ITEMID: %(itemid)s', itemid=result['itemid']) }}">
+                            <a href="{{ url_for_item(result['itemid'], field='itemid', namespace=result['namespace']) }}" title="{{ _('ITEMID: {itemid}').format(itemid=result['itemid']) }}">
                                 {{ result['summary'] }}
                             </a>
                         </td>
@@ -103,7 +103,7 @@
 
 {% block head %}
     {{ super() }}
-    <link media="all" rel="stylesheet" href="{{ url_for('static', filename='css/ticket.css') }}" />
+    <link media="all" rel="stylesheet" href="{{ url_for('static', filename='css/ticket.css') }}">
 {% endblock %}
 
 {% block body_scripts %}

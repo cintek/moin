@@ -153,7 +153,7 @@
         <li class="list-group-item">Item Links:&nbsp;
             {%- if meta['itemlinks'] -%}
                 {%- for item in meta['itemlinks']|sort -%}
-                    <a href="{{ url_for('frontend.show_item', item_name=item) }}" {% if not theme_supp.item_exists(item) %}class="moin-nonexistent"{% endif %}>{{ item }}</a>
+                    <a href="{{ url_for('frontend.show_item', item_name=item) }}" {% if not theme_supp.itemlink_exists(item) %}class="moin-nonexistent"{% endif %}>{{ item }}</a>
                     {%- if not loop.last %}, {% endif -%}
                 {%- endfor -%}
             {%- else -%}
@@ -447,7 +447,7 @@
         {%- set avatar = user.avatar(20) %}
         {%- if avatar %}
             <li>
-                <img id="moin-avatar" src="{{ avatar }}" />
+                <img id="moin-avatar" src="{{ avatar }}">
             </li>
         {%- endif %}
         {% if user.name -%}
@@ -543,7 +543,7 @@
             <a class="moin-prior-page" href="{{ url }}?page_num={{ page_num-1 }}" title="{{ _("Previous") }}">&laquo;</a>
         {% endif %}
         {% if pages > 1 %}
-            {% set page_number = _("Page %(page_num)s of %(pages)s", page_num=page_num, pages=pages) %}
+            {% set page_number = _("Page {page_num} of {pages}").format(page_num=page_num, pages=pages) %}
             <span class="moin-page-num"> {{ page_number }} </span>
         {% endif %}
         {% if page_num < pages %}

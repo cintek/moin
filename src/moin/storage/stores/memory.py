@@ -9,13 +9,14 @@ Stores k/v pairs into memory (RAM, non-persistent!).
 Note: likely this is mostly useful for unit tests.
 """
 
-from . import (BytesMutableStoreBase, FileMutableStoreBase, FileMutableStoreMixin)
+from . import BytesMutableStoreBase, FileMutableStoreBase, FileMutableStoreMixin
 
 
 class BytesStore(BytesMutableStoreBase):
     """
     A simple dict-based in-memory store. No persistence!
     """
+
     @classmethod
     def from_uri(cls, uri):
         return cls()
@@ -37,8 +38,7 @@ class BytesStore(BytesMutableStoreBase):
         self._st = None
 
     def __iter__(self):
-        for key in self._st:
-            yield key
+        yield from self._st
 
     def __delitem__(self, key):
         del self._st[key]

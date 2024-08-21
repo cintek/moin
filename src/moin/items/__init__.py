@@ -5,6 +5,7 @@
 # Copyright: 2008,2009 MoinMoin:BastianBlank
 # Copyright: 2010 MoinMoin:ValentinJaniaut
 # Copyright: 2010 MoinMoin:DiogenesAugusto
+# Copyright: 2024 MoinMoin:UlrichB
 # License: GNU GPL v2 (or any later version), see LICENSE.txt for details.
 
 """
@@ -48,24 +49,51 @@ from moin.utils.interwiki import url_for_item, split_fqname, CompositeName
 from moin.utils.registry import RegistryBase
 from moin.utils.diff_html import diff as html_diff
 from moin.utils import diff3
-from moin.forms import (
-    RequiredText, OptionalText, Tags, Names, validate_name,
-    NameNotValidError, OptionalMultilineText
-)
+from moin.forms import RequiredText, OptionalText, Tags, Names, validate_name, NameNotValidError, OptionalMultilineText
 from moin.constants.keys import (
-    NAME, NAMES, NAMENGRAM, NAME_OLD, NAME_EXACT, WIKINAME, MTIME, ITEMTYPE,
-    CONTENTTYPE, SIZE, ACTION, ADDRESS, HOSTNAME, USERID, COMMENT,
-    HASH_ALGORITHM, ITEMID, REVID, DATAID, CURRENT, PARENTID, NAMESPACE,
-    UFIELDS_TYPELIST, UFIELDS, TRASH, REV_NUMBER,
-    ACTION_SAVE, ACTION_REVERT, ACTION_TRASH, ACTION_RENAME, TAGS, TEMPLATE,
-    LATEST_REVS, EDIT_ROWS, FQNAMES, USERGROUP, WIKIDICT
+    NAME,
+    NAMES,
+    NAMENGRAM,
+    NAME_OLD,
+    NAME_EXACT,
+    WIKINAME,
+    MTIME,
+    ITEMTYPE,
+    CONTENTTYPE,
+    SIZE,
+    ACTION,
+    ADDRESS,
+    HOSTNAME,
+    USERID,
+    COMMENT,
+    HASH_ALGORITHM,
+    ITEMID,
+    REVID,
+    DATAID,
+    CURRENT,
+    PARENTID,
+    NAMESPACE,
+    UFIELDS_TYPELIST,
+    UFIELDS,
+    TRASH,
+    REV_NUMBER,
+    ACTION_SAVE,
+    ACTION_REVERT,
+    ACTION_TRASH,
+    ACTION_RENAME,
+    TAGS,
+    TEMPLATE,
+    LATEST_REVS,
+    EDIT_ROWS,
+    FQNAMES,
+    USERGROUP,
+    WIKIDICT,
+    LANGUAGE,
 )
 from moin.constants.chartypes import CHARS_UPPER, CHARS_LOWER
 from moin.constants.namespaces import NAMESPACE_ALL, NAMESPACE_USERPROFILES
 from moin.constants.contenttypes import CONTENTTYPE_NONEXISTENT, CONTENTTYPE_VARIABLES
-from moin.constants.itemtypes import (
-    ITEMTYPE_NONEXISTENT, ITEMTYPE_USERPROFILE, ITEMTYPE_DEFAULT, ITEMTYPE_TICKET
-)
+from moin.constants.itemtypes import ITEMTYPE_NONEXISTENT, ITEMTYPE_USERPROFILE, ITEMTYPE_DEFAULT, ITEMTYPE_TICKET
 from moin.utils.notifications import DESTROY_REV, DESTROY_ALL
 from moin.mail.sendmail import encodeSpamSafeEmail
 
@@ -73,6 +101,7 @@ from .content import content_registry, Content, NonExistentContent, Draw, Text
 from ..utils.pysupport import load_package_modules
 
 from moin import log
+
 logging = log.getLogger(__name__)
 
 
@@ -81,7 +110,7 @@ ROWS_META = 10
 
 
 def find_matches(fq_name, s_re=None, e_re=None):
-    """ Find similar item names.
+    """Find similar item names.
 
     :param fq_name: fqname to match
     :param s_re: start re for wiki matching
@@ -132,9 +161,9 @@ def wiki_matches(fq_name, fq_names, start_re=None, end_re=None):
     :returns: start, end, matches dict
     """
     if start_re is None:
-        start_re = re.compile('([{0}][{1}]+)'.format(CHARS_UPPER, CHARS_LOWER))
+        start_re = re.compile(f"([{CHARS_UPPER}][{CHARS_LOWER}]+)")
     if end_re is None:
-        end_re = re.compile('([{0}][{1}]+)$'.format(CHARS_UPPER, CHARS_LOWER))
+        end_re = re.compile(f"([{CHARS_UPPER}][{CHARS_LOWER}]+)$")
 
     # If we don't get results with wiki words matching, fall back to
     # simple first word and last word, using spaces.
@@ -153,7 +182,7 @@ def wiki_matches(fq_name, fq_names, start_re=None, end_re=None):
         end = words[-1]
 
     matches = {}
-    subitem = item_name + '/'
+    subitem = item_name + "/"
 
     # Find any matching item names and rank by type of match
     for fqname in fq_names:
@@ -170,7 +199,7 @@ def wiki_matches(fq_name, fq_names, start_re=None, end_re=None):
 
 
 def close_match(fq_name, fq_names):
-    """ Get close matches.
+    """Get close matches.
 
     Return all matching fqnames with rank above cutoff value.
 
@@ -193,8 +222,7 @@ def close_match(fq_name, fq_names):
             lower[key] = [fqname]
     # Get all close matches
     item_name = fq_name.value
-    all_matches = difflib.get_close_matches(item_name.lower(), list(lower.keys()),
-                                            n=len(lower), cutoff=0.6)
+    all_matches = difflib.get_close_matches(item_name.lower(), list(lower.keys()), n=len(lower), cutoff=0.6)
 
     # Replace lower names with original names
     matches = []
@@ -204,37 +232,72 @@ def close_match(fq_name, fq_names):
     return matches
 
 
-def _verify_parents(self, new_name, namespace, old_name=''):
+def _verify_parents(self, new_name, namespace, old_name=""):
     """
     If this is a subitem, verify all parent items exist. Return None if OK, raise error if not OK.
     """
-    name_segments = new_name.split('/')
+    name_segments = new_name.split("/")
     for idx in range(len(name_segments) - 1):
-        root_name = '/'.join(name_segments[:idx + 1])
+        root_name = "/".join(name_segments[: idx + 1])
         fqname = CompositeName(namespace, NAME_EXACT, root_name)
         parent_item = flaskg.unprotected_storage.get_item(**fqname.query)
         if parent_item.itemid is None:
-            raise MissingParentError(_(
-                "Cannot create or rename item '%(new_name)s' because parent '%(parent_name)s' is missing.",
-                new_name=new_name, parent_name=name_segments[idx]
-            ))
+            raise MissingParentError(
+                _("Cannot create or rename item '{new_name}' because parent '{parent_name}' is missing.").format(
+                    new_name=new_name, parent_name=name_segments[idx]
+                )
+            )
 
 
-def str_to_dict(strg):
+def str_to_dict(data):
     """
     Convert wikidicts from multi-line input form:
         'First=first item\ntext with spaces=second item\nEmpty string=\nLast=last item\n',
     To dictionary:
         {'Last': 'last item', 'text with spaces': 'second item', 'Empty string': '', 'First': 'first item'}
+
+    We want to make it easy for users to enter simple "key=val" pairs but store the data in
+    metadata as a dict. Validation with error messages will occur later. Here we use hacks to
+    force bad data into valid {key:value} pairs.
+
+        Missing or too many "=" then do: {' ' + line: line}
+        Duplicate key then do: {' ' + line: line}
+
+    Rather than giving user validation mesages about leading/trailing blanks or empty lines later,
+    we just remove them here and document the corrections with flash messages.
     """
     new_dict = {}
-    lines = strg.splitlines()
-    for kv in lines:
-        try:
-            k, v = kv.split('=', 1)
+    lines = data.splitlines()
+    for key_val in lines:
+        if not key_val == key_val.strip():
+            flash(
+                L_("Removed leading or trailing blanks from WikiDict line: '{key_val}'.").format(key_val=key_val),
+                "info",
+            )
+            key_val = key_val.strip()
+        if not key_val:
+            flash(L_("Empty line in Wiki Dict discarded."), "info")
+            continue  #
+        kv = key_val.split("=")
+        if not len(kv) == 2:
+            new_dict[" " + key_val] = key_val
+            continue
+        k, v = kv
+        if not k == k.strip():
+            flash(
+                L_("Removed leading or trailing blanks from WikiDict key: '{key_val}'.").format(key_val=key_val), "info"
+            )
+            k = k.strip()
+        if not v == v.strip():
+            flash(
+                L_("Removed leading or trailing blanks from WikiDict value: '{key_val}'.").format(key_val=key_val),
+                "info",
+            )
+            v = v.strip()
+        if k in new_dict:
+            new_dict[" " + key_val] = key_val
+        else:
             new_dict[k] = v
-        except ValueError:
-            flash(_('Invalid line in wikidict meta data; ignored: "%(data)s"}', data=kv), 'error')
     return new_dict
 
 
@@ -247,13 +310,13 @@ def dict_to_str(dic):
     """
     new_str = []
     for k, v in dic.items():
-        new_str.append(k + '=' + v)
-    new_str = '\r\n'.join(new_str)
+        new_str.append(k + "=" + v)
+    new_str = "\r\n".join(new_str)
     return new_str
 
 
 class RegistryItem(RegistryBase):
-    class Entry(namedtuple('Entry', 'factory itemtype display_name description order')):
+    class Entry(namedtuple("Entry", "factory itemtype display_name description order")):
         def __call__(self, itemtype, *args, **kw):
             if self.itemtype == itemtype:
                 return self.factory(*args, **kw)
@@ -264,7 +327,7 @@ class RegistryItem(RegistryBase):
             return NotImplemented
 
     def __init__(self):
-        super(RegistryItem, self).__init__()
+        super().__init__()
         self.shown_entries = []
 
     def register(self, e, shown):
@@ -275,7 +338,7 @@ class RegistryItem(RegistryBase):
         """
         if shown:
             self.shown_entries.append(e)
-            self.shown_entries.sort(key=attrgetter('order'))
+            self.shown_entries.sort(key=attrgetter("order"))
         return self._register(e)
 
 
@@ -283,21 +346,20 @@ item_registry = RegistryItem()
 
 
 def register(cls):
-    item_registry.register(RegistryItem.Entry(cls._factory, cls.itemtype, cls.display_name,
-                                              cls.description, cls.order), cls.shown)
+    item_registry.register(
+        RegistryItem.Entry(cls._factory, cls.itemtype, cls.display_name, cls.description, cls.order), cls.shown
+    )
     return cls
 
 
 class DummyRev(dict):
-    """ if we have no stored Revision, we use this dummy """
+    """if we have no stored Revision, we use this dummy"""
+
     def __init__(self, item, itemtype=None, contenttype=None):
         self.item = item
         fqname = item.fqname
-        self.meta = {
-            ITEMTYPE: itemtype or ITEMTYPE_NONEXISTENT,
-            CONTENTTYPE: contenttype or CONTENTTYPE_NONEXISTENT
-        }
-        self.data = BytesIO(b'')
+        self.meta = {ITEMTYPE: itemtype or ITEMTYPE_NONEXISTENT, CONTENTTYPE: contenttype or CONTENTTYPE_NONEXISTENT}
+        self.data = BytesIO(b"")
         self.revid = None
         if item:
             self.meta[NAMESPACE] = fqname.namespace
@@ -311,7 +373,8 @@ class DummyRev(dict):
 
 
 class DummyItem:
-    """ if we have no stored Item, we use this dummy """
+    """if we have no stored Item, we use this dummy"""
+
     def __init__(self, fqname):
         self.fqname = fqname
 
@@ -350,12 +413,12 @@ def get_storage_revision(fqname, itemtype=None, contenttype=None, rev_id=CURRENT
             if item.fqname:
                 fqname = item.fqname
     if not item:  # except NoSuchItemError:
-        logging.debug("No such item: {0!r}".format(fqname))
+        logging.debug(f"No such item: {fqname!r}")
         item = DummyItem(fqname)
         rev = DummyRev(item, itemtype, contenttype)
-        logging.debug("Item {0!r}, created dummy revision with contenttype {1!r}".format(fqname, contenttype))
+        logging.debug(f"Item {fqname!r}, created dummy revision with contenttype {contenttype!r}")
     else:
-        logging.debug("Got item: {0!r}".format(fqname))
+        logging.debug(f"Got item: {fqname!r}")
         try:
             rev = item.get_revision(rev_id)
         except KeyError:  # NoSuchRevisionError:
@@ -363,25 +426,25 @@ def get_storage_revision(fqname, itemtype=None, contenttype=None, rev_id=CURRENT
                 rev = item.get_revision(CURRENT)  # fall back to current revision
                 # XXX add some message about invalid revision
             except KeyError:  # NoSuchRevisionError:
-                logging.debug("Item {0!r} has no revisions.".format(fqname))
+                logging.debug(f"Item {fqname!r} has no revisions.")
                 rev = DummyRev(item, itemtype, contenttype)
-                logging.debug("Item {0!r}, created dummy revision with contenttype {1!r}".format(fqname, contenttype))
-        logging.debug("Got item {0!r}, revision: {1!r}".format(fqname, rev_id))
+                logging.debug(f"Item {fqname!r}, created dummy revision with contenttype {contenttype!r}")
+        logging.debug(f"Got item {fqname!r}, revision: {rev_id!r}")
     return rev
 
 
 class BaseChangeForm(Form):
     # autofocus=True causes javascript autoscroll in textarea to fail when using Chrome, Opera, or Maxthon browsers
-    comment = OptionalText.using(label=L_('Comment')).with_properties(
+    comment = OptionalText.using(label=L_("Comment")).with_properties(
         placeholder=L_("Comment about your change"), autofocus=False
     )
-    submit_label = L_('OK')
-    preview_label = L_('Preview')
-    cancel_label = L_('Cancel')
+    submit_label = L_("OK")
+    preview_label = L_("Preview")
+    cancel_label = L_("Cancel")
 
 
 class CreateItemForm(BaseChangeForm):
-    target = RequiredText.using(label=L_('Target')).with_properties(autofocus=True)
+    target = RequiredText.using(label=L_("Target")).with_properties(autofocus=True)
 
 
 def acl_validate(acl_string):
@@ -391,17 +454,17 @@ def acl_validate(acl_string):
     In later processes, None means no item ACLs, so the configured default ACLs will be used.
     Empty is same as "". If there are no configured 'after' ACLs, then Empty and "" are equivalent to "All:".
     """
-    all_rights = {'read', 'write', 'create', 'destroy', 'admin'}
+    all_rights = {"read", "write", "create", "destroy", "admin"}
     acls = str(acl_string)
-    if acls in ('None', 'Empty', ''):  # '' is not possible if field is required on form
+    if acls in ("None", "Empty", ""):  # '' is not possible if field is required on form
         return True
     acls = acls.split()
     for acl in acls:
-        acl_rules = acl.split(':')
+        acl_rules = acl.split(":")
         if len(acl_rules) == 2:
             who, rights = acl_rules
             if rights:
-                rights = rights.split(',')
+                rights = rights.split(",")
                 for right in rights:
                     if right not in all_rights:
                         return False
@@ -414,13 +477,70 @@ class ACLValidator(Validator):
     """
     Meta Validator - currently used for validating ACLs only
     """
+
     acl_fail_msg = L_("The ACL string is invalid.")
 
     def validate(self, element, state):
         if acl_validate(element) is True:
             return True
         flash(L_("The ACL string is invalid."), "error")
-        return self.note_error(element, state, 'acl_fail_msg')
+        return element, state, "acl_fail_msg"
+
+
+class DictValidator(Validator):
+    """
+    validate wiki dicts
+    """
+
+    msg = L_("The Wiki Dict is invalid. The format is 'key=value', one per line, no commas.")
+
+    def validate(self, element, state):
+        meta = state["meta"]
+        if WIKIDICT in meta:
+            for key, val in meta[WIKIDICT].items():
+                if key[0] == " " and key[1:] == val:
+                    # the data is malformed, val has original line in form
+                    msg = L_("Invalid key=value pair: '{invalid}'. Nothing saved.").format(invalid=val)
+                    flash(msg, "error")
+                    return self.note_error(element, state, "msg")
+        return True
+
+
+class GroupValidator(Validator):
+    """
+    validate user groups
+    """
+
+    group_fail_msg = L_("The User Group list is invalid.")
+
+    def validate(self, element, state):
+        no_dups = set()
+        meta = state["meta"]
+        if USERGROUP in meta:
+            names = meta[USERGROUP]
+            for name in names:
+                if not name == name.strip():
+                    msg = L_(
+                        "Invalid user name, leading or trailing blanks not allowed: '{invalid}'. Nothing saved."
+                    ).format(invalid=name)
+                    flash(msg, "error")
+                    return self.note_error(element, state, "group_fail_msg")
+                if not name:
+                    msg = L_("Invalid user name, null string not allowed: '{invalid}'. Nothing saved.").format(
+                        invalid=name
+                    )
+                    flash(msg, "error")
+                    return self.note_error(element, state, "group_fail_msg")
+                if "," in name:
+                    msg = L_("Invalid user name, ',' not allowed: '{invalid}'. Nothing saved.").format(invalid=name)
+                    flash(msg, "error")
+                    return self.note_error(element, state, "group_fail_msg")
+                if name in no_dups:
+                    msg = L_("Duplicate user name: '{invalid}'. Nothing saved.").format(invalid=name)
+                    flash(msg, "error")
+                    return self.note_error(element, state, "group_fail_msg")
+                no_dups.add(name)
+        return True
 
 
 class BaseMetaForm(Form):
@@ -441,6 +561,7 @@ class BaseModifyForm(BaseChangeForm):
     This class is abstract and only defines two factory methods; see
     Item._ModifyForm for the implementation.
     """
+
     @classmethod
     def from_item(cls, item):
         """
@@ -478,13 +599,13 @@ def _build_contenttype_query(groups):
         for e in content_registry.groups[g]:
             ct_unicode = str(e.content_type)
             queries.append(Term(CONTENTTYPE, ct_unicode))
-            queries.append(Prefix(CONTENTTYPE, ct_unicode + ';'))
+            queries.append(Prefix(CONTENTTYPE, ct_unicode + ";"))
     return Or(queries)
 
 
-IndexEntry = namedtuple('IndexEntry', 'relname fullname meta')
+IndexEntry = namedtuple("IndexEntry", "relname fullname meta")
 
-MixedIndexEntry = namedtuple('MixedIndexEntry', 'relname fullname meta hassubitems')
+MixedIndexEntry = namedtuple("MixedIndexEntry", "relname fullname meta hassubitems")
 
 
 def get_itemtype_specific_tags(itemtype):
@@ -519,11 +640,12 @@ class FieldNotUniqueError(ValueError):
 
 
 class Item:
-    """ Highlevel (not storage) Item, wraps around a storage Revision"""
+    """Highlevel (not storage) Item, wraps around a storage Revision"""
+
     # placeholder values for registry entry properties
-    itemtype = ''
-    display_name = ''
-    description = ''
+    itemtype = ""
+    display_name = ""
+    description = ""
     shown = True
     order = 0
 
@@ -532,7 +654,7 @@ class Item:
         return cls(*args, **kw)
 
     @classmethod
-    def create(cls, name='', itemtype=None, contenttype=None, rev_id=CURRENT, item=None):
+    def create(cls, name="", itemtype=None, contenttype=None, rev_id=CURRENT, item=None):
         """
         Create a highlevel Item by looking up :name or directly wrapping
         :item and extract the Revision designated by :rev_id revision.
@@ -552,11 +674,11 @@ class Item:
         """
         fqname = split_fqname(name)
         if fqname.field not in UFIELDS:  # Need a unique key to extract stored item.
-            raise FieldNotUniqueError("field {0} is not in UFIELDS".format(fqname.field))
+            raise FieldNotUniqueError(f"field {fqname.field} is not in UFIELDS")
 
         rev = get_storage_revision(fqname, itemtype, contenttype, rev_id, item)
         contenttype = rev.meta.get(CONTENTTYPE) or contenttype
-        logging.debug("Item {0!r}, got contenttype {1!r} from revision meta".format(name, contenttype))
+        logging.debug(f"Item {name!r}, got contenttype {contenttype!r} from revision meta")
         # logging.debug("Item %r, rev meta dict: %r" % (name, dict(rev.meta)))
 
         # XXX Cannot pass item=item to Content.__init__ via
@@ -564,10 +686,10 @@ class Item:
         content = Content.create(contenttype)
 
         itemtype = rev.meta.get(ITEMTYPE) or itemtype or ITEMTYPE_DEFAULT
-        logging.debug("Item {0!r}, got itemtype {1!r} from revision meta".format(name, itemtype))
+        logging.debug(f"Item {name!r}, got itemtype {itemtype!r} from revision meta")
 
         item = item_registry.get(itemtype, fqname, rev=rev, content=content)
-        logging.debug("Item class {0!r} handles {1!r}".format(item.__class__, itemtype))
+        logging.debug(f"Item class {item.__class__!r} handles {itemtype!r}")
 
         content.item = item
         return item
@@ -579,6 +701,7 @@ class Item:
 
     def get_meta(self):
         return self.rev.meta
+
     meta = property(fget=get_meta)
 
     @property
@@ -589,7 +712,7 @@ class Item:
         try:
             return self.names[0]
         except IndexError:
-            return ''
+            return ""
 
     @property
     def names(self):
@@ -618,37 +741,41 @@ class Item:
         return self.meta_to_dict(self.meta, use_filter=False)
 
     def meta_filter(self, meta):
-        """ kill metadata entries that we set automatically when saving """
+        """kill metadata entries that we set automatically when saving"""
         kill_keys = [  # shall not get copied from old rev to new rev
             # As we have a special field for NAME we don't want NAME to appear in JSON meta.
-            NAME, NAME_OLD,
+            NAME,
+            NAME_OLD,
             # are automatically implanted when saving
-            REVID, DATAID,
+            REVID,
+            DATAID,
             HASH_ALGORITHM,
             SIZE,
             COMMENT,
             MTIME,
             ACTION,
-            ADDRESS, HOSTNAME, USERID,
+            ADDRESS,
+            HOSTNAME,
+            USERID,
         ]
         for key in kill_keys:
             meta.pop(key, None)
         return meta
 
     def meta_to_dict(self, meta, use_filter=True):
-        """ convert meta data from storage object to python dict """
+        """convert meta data from storage object to python dict"""
         meta = dict(meta)
         if use_filter:
             meta = self.meta_filter(meta)
         return meta
 
     def meta_text_to_dict(self, text):
-        """ convert meta data from a text fragment to a dict """
+        """convert meta data from a text fragment to a dict"""
         meta = json.loads(text)
         return self.meta_filter(meta)
 
     def meta_dict_to_text(self, meta, use_filter=True):
-        """ convert meta data from a dict to a text fragment """
+        """convert meta data from a dict to a text fragment"""
         meta = self.meta_to_dict(meta, use_filter)
         return json.dumps(meta, sort_keys=True, indent=2, ensure_ascii=False)
 
@@ -677,21 +804,24 @@ class Item:
         new_name = names if len(names) > 1 else names[0]
         if delete:
             if ajax:
-                messages.append(L_('The item "%(name)s" was deleted.', name=old_name))
+                messages.append(L_('The item "{name}" was deleted.').format(name=old_name))
             else:
-                flash(L_('The item "%(name)s" was deleted.', name=old_name), 'info')
+                flash(L_('The item "{name}" was deleted.').format(name=old_name), "info")
         else:
             # rename
             if ajax:
-                messages.append(L_('The item "%(name)s" was renamed to "%(new_name)s".',
-                                   name=old_name, new_name=new_name))
+                messages.append(
+                    L_('The item "{name}" was renamed to "{new_name}".').format(name=old_name, new_name=new_name)
+                )
             else:
-                flash(L_('The item "%(name)s" was renamed to "%(new_name)s".',
-                         name=old_name, new_name=new_name), 'info')
+                flash(
+                    L_('The item "{name}" was renamed to "{new_name}".').format(name=old_name, new_name=new_name),
+                    "info",
+                )
         removed_names = set(self.meta[NAME]) - set(names)
-        removed_names = tuple(x + '/' for x in removed_names)
+        removed_names = tuple(x + "/" for x in removed_names)
         if removed_names or delete:
-            new_parent = names[0] + '/'  # new prefix that will adopt any orphaned subitems
+            new_parent = names[0] + "/"  # new prefix that will adopt any orphaned subitems
             subitems = list(self.get_subitem_revs())
             for child in subitems:
                 old_name = child.meta[NAME] if len(child.meta[NAME]) > 1 else child.meta[NAME][0]
@@ -699,12 +829,13 @@ class Item:
                     child_newname = None
                     old_fqname = CompositeName(self.fqname.namespace, NAME_EXACT, child.meta[NAME][0])
                     item = Item.create(old_fqname.fullname)
-                    item._save(item.meta, item.content.data, names=child_newname, action=action,
-                               comment=comment, delete=delete)
+                    item._save(
+                        item.meta, item.content.data, names=child_newname, action=action, comment=comment, delete=delete
+                    )
                     if ajax:
-                        messages.append(L_('The subitem "%(name)s" was deleted.', name=old_name))
+                        messages.append(L_('The subitem "{name}" was deleted.').format(name=old_name))
                     else:
-                        flash(L_('The item "%(name)s" was deleted.', name=old_name), 'info')
+                        flash(L_('The item "{name}" was deleted.').format(name=old_name), "info")
                     close_file(item.rev.data)
                     subitem_names += [x.fullname for x in child.meta.revision.fqnames]
                 else:  # rename
@@ -717,15 +848,25 @@ class Item:
                                 working_name = [child_newname if x == child_oldname else x for x in working_name]
                                 old_fqname = CompositeName(self.fqname.namespace, NAME_EXACT, child_oldname)
                                 item = Item.create(old_fqname.fullname)
-                                item._save(item.meta, item.content.data, names=working_name, action=action,
-                                           comment=comment, delete=delete)
+                                item._save(
+                                    item.meta,
+                                    item.content.data,
+                                    names=working_name,
+                                    action=action,
+                                    comment=comment,
+                                    delete=delete,
+                                )
                                 new_name = working_name if len(working_name) > 1 else working_name[0]
-                                flash(L_('The item "%(name)s" was renamed to "%(new_name)s".',
-                                         name=old_name, new_name=new_name), 'info')
+                                flash(
+                                    L_('The item "{name}" was renamed to "{new_name}".').format(
+                                        name=old_name, new_name=new_name
+                                    ),
+                                    "info",
+                                )
                                 close_file(item.rev.data)
         return messages, subitem_names
 
-    def rename(self, names, comment=''):
+    def rename(self, names, comment=""):
         """
         rename this item to item <names> (replace current names by names in the NAME list)
         """
@@ -736,15 +877,17 @@ class Item:
                 # verify new names do not exist
                 fqname = CompositeName(self.fqname.namespace, self.fqname.field, name)
                 if flaskg.storage.get_item(**fqname.query):
-                    raise NameNotUniqueError(L_(
-                        "An item named %s already exists in the namespace %s." % (name, fqname.namespace)
-                    ))
-            if '/' in name:
+                    raise NameNotUniqueError(
+                        L_("An item named {name} already exists in the namespace {namespace}.").format(
+                            name=name, namespace=fqname.namespace
+                        )
+                    )
+            if "/" in name:
                 # if this is a subitem, verify all parent items exist
                 _verify_parents(self, name, self.fqname.namespace, old_name=self.fqname.value)
         self._rename(names, comment, action=ACTION_RENAME)
 
-    def delete(self, comment='', do_subitems=True, ajax=False):
+    def delete(self, comment="", do_subitems=True, ajax=False):
         """
         delete this item
         """
@@ -752,14 +895,14 @@ class Item:
         ret = self._rename(self.names, comment, action=ACTION_TRASH, delete=True, do_subitems=do_subitems, ajax=ajax)
         return ret
 
-    def revert(self, comment=''):
+    def revert(self, comment=""):
         meta = dict(self.meta)
         meta[TRASH] = False
         if not self.meta[NAME]:
             meta[NAME] = meta[NAME_OLD]
         return self._save(meta, self.content.data, names=meta[NAME], action=ACTION_REVERT, comment=comment)
 
-    def destroy(self, comment='', destroy_item=False, subitem_names=[], ajax=False):
+    def destroy(self, comment="", destroy_item=False, subitem_names=[], ajax=False):
         """
         If destroy_item is false destroy current revision; else destroy current item and
         any items passed in subitem_names.
@@ -778,9 +921,9 @@ class Item:
             # destroy complete item with all revisions, metadata, etc.
             self.rev.item.destroy_all_revisions()
             if ajax:
-                messages.append(L_('The item "%(name)s" was destroyed.', name=old_name))
+                messages.append(L_('The item "{name}" was destroyed.').format(name=old_name))
             else:
-                flash(L_('The item "%(name)s" was destroyed.', name=old_name), 'info')
+                flash(L_('The item "{name}" was destroyed.').format(name=old_name), "info")
             # destroy all subitems
             for subitem_name in subitem_names:
                 first_name = subitem_name[0] if isinstance(subitem_name, list) else subitem_name
@@ -790,25 +933,36 @@ class Item:
                 if flaskg.user.may.destroy(item.fqname):
                     item.rev.item.destroy_all_revisions()
                     if ajax:
-                        messages.append(L_('The subitem "%(name)s" was destroyed.', name=old_name))
+                        messages.append(L_('The subitem "{name}" was destroyed.').format(name=old_name))
                     else:
-                        flash(L_('The item "%(name)s" was destroyed.', name=old_name), 'info')
+                        flash(L_('The item "{name}" was destroyed.').format(name=old_name), "info")
                     destroyed_names += item.names
                 else:
                     if ajax:
-                        messages.append(L_('Error: The subitem "%(name)s" was not destroyed, permission denied.',
-                                           name=old_name))
+                        messages.append(
+                            L_('Error: The subitem "{name}" was not destroyed, permission denied.').format(
+                                name=old_name
+                            )
+                        )
                     else:
-                        flash(L_('Error: The subitem "%(name)s" was not destroyed, permission denied.',
-                                 name=old_name), 'info')
+                        flash(
+                            L_('Error: The subitem "{name}" was not destroyed, permission denied.').format(
+                                name=old_name
+                            ),
+                            "info",
+                        )
         else:
             # just destroy this revision
             self.rev.item.destroy_revision(self.rev.revid)
-            flash(L_('Rev Number %(rev_number)s of the item "%(name)s" was destroyed.',
-                     rev_number=self.meta['rev_number'], name=old_name), 'info')
+            flash(
+                L_('Rev Number {rev_number} of the item "{name}" was destroyed.').format(
+                    rev_number=self.meta["rev_number"], name=old_name
+                ),
+                "info",
+            )
         return messages, destroyed_names
 
-    def modify(self, meta, data, comment='', contenttype_guessed=None, **update_meta):
+    def modify(self, meta, data, comment="", contenttype_guessed=None, **update_meta):
         meta = dict(meta)  # we may get a read-only dict-like, copy it
         # get rid of None values
         update_meta = {key: value for key, value in update_meta.items() if value is not None}
@@ -824,10 +978,19 @@ class Item:
         Subclasses of Contentful should generally override this instead of
         ModifyForm.
         """
+
         meta_form = BaseMetaForm
-        wikidict = OptionalMultilineText.using(label=L_("Wiki Dict")).with_properties(rows=ROWS_META, cols=COLS)
-        usergroup = OptionalMultilineText.using(label=L_("User Group")).with_properties(rows=ROWS_META, cols=COLS)
-        meta_template = 'modify_meta.html'
+        wikidict = (
+            OptionalMultilineText.using(label=L_("Wiki Dict"))
+            .with_properties(rows=ROWS_META, cols=COLS)
+            .validated_by(DictValidator())
+        )
+        usergroup = (
+            OptionalMultilineText.using(label=L_("User Group"))
+            .with_properties(rows=ROWS_META, cols=COLS)
+            .validated_by(GroupValidator())
+        )
+        meta_template = "modify_meta.html"
 
         def _load(self, item):
             """
@@ -839,22 +1002,22 @@ class Item:
             # 'strict', which causes KeyError to be thrown when meta contains
             # meta keys that are not present in self['meta_form']. Setting
             # policy to 'duck' suppresses this behavior.
-            if 'acl' not in meta:
-                meta['acl'] = "None"
-            self['meta_form'].set(meta, policy='duck')
-            if meta[NAME][0].endswith('Dict'):
+            if "acl" not in meta:
+                meta["acl"] = "None"
+            self["meta_form"].set(meta, policy="duck")
+            if meta[NAME][0].endswith("Dict"):
                 try:
                     self[WIKIDICT].set(dict_to_str(item.meta[WIKIDICT]))
                 except KeyError:
                     pass
-            if meta[NAME][0].endswith('Group'):
+            if meta[NAME][0].endswith("Group"):
                 try:
-                    user_group = '\r\n'.join(item.meta[USERGROUP])
+                    user_group = "\r\n".join(item.meta[USERGROUP])
                     self[USERGROUP].set(user_group)
                 except KeyError:
                     pass
 
-            self['content_form']._load(item.content)
+            self["content_form"]._load(item.content)
 
         def _dump(self, item):
             """
@@ -870,13 +1033,13 @@ class Item:
             # original meta and update it with those from the metadata editor
             # e.g. we get PARENTID in here
             meta = item.meta_filter(item.prepare_meta_for_modify(item.meta))
-            meta.update(self['meta_form'].value)
-            if item.name.endswith('Dict'):
+            meta.update(self["meta_form"].value)
+            if item.name.endswith("Dict"):
                 meta.update({WIKIDICT: str_to_dict(self[WIKIDICT].value)})
-            if item.name.endswith('Group'):
+            if item.name.endswith("Group"):
                 meta.update({USERGROUP: self[USERGROUP].value.splitlines()})
-            data, contenttype_guessed = self['content_form']._dump(item.content)
-            comment = self['comment'].value
+            data, contenttype_guessed = self["content_form"]._dump(item.content)
+            comment = self["comment"].value
             return meta, data, contenttype_guessed, comment
 
     def do_modify(self):
@@ -888,8 +1051,17 @@ class Item:
         """
         raise NotImplementedError
 
-    def _save(self, meta, data=None, names=None, action=ACTION_SAVE, contenttype_guessed=None, comment=None,
-              overwrite=False, delete=False):
+    def _save(
+        self,
+        meta,
+        data=None,
+        names=None,
+        action=ACTION_SAVE,
+        contenttype_guessed=None,
+        comment=None,
+        overwrite=False,
+        delete=False,
+    ):
         """
         Called by rename (delete calls rename), revert, modify (including first save), admin acl changes.
 
@@ -908,14 +1080,18 @@ class Item:
             contenttype_current = None
 
         meta = dict(meta)  # we may get a read-only dict-like, copy it
+        if flaskg.user.language:
+            meta[LANGUAGE] = flaskg.user.language
+        else:
+            meta[LANGUAGE] = app.cfg.language_default
 
-        if 'acl' in meta:
+        if "acl" in meta:
             # we treat this as nothing specified, so fallback to default
-            if meta['acl'] == 'None':
-                meta.pop('acl')
+            if meta["acl"] == "None":
+                meta.pop("acl")
             # this is treated as a rule which matches nothing
-            elif meta['acl'] == 'Empty':
-                meta['acl'] = ''
+            elif meta["acl"] == "Empty":
+                meta["acl"] = ""
         # we store the previous (if different) and current item names into revision metadata
         # this is useful for deletes, rename history and backends that use item uids internally
         if self.fqname.field == NAME_EXACT:
@@ -961,28 +1137,37 @@ class Item:
                 # a valid usecase of this is to just edit metadata.
                 data = currentrev.data
             else:
-                data = b''
+                data = b""
 
         if isinstance(data, str):
             data = self.handle_variables(data, meta)
-            charset = meta['contenttype'].split('charset=')[1]
+            charset = meta["contenttype"].split("charset=")[1]
             data = data.encode(charset)
 
         if isinstance(data, bytes):
             data = BytesIO(data)
-        fqname, new_meta = storage_item.store_revision(meta, data,
-                                                       overwrite=overwrite,
-                                                       action=str(action),
-                                                       contenttype_current=contenttype_current,
-                                                       contenttype_guessed=contenttype_guessed,
-                                                       return_meta=True,
-                                                       return_rev=True,
-                                                       )
+        fqname, new_meta = storage_item.store_revision(
+            meta,
+            data,
+            overwrite=overwrite,
+            action=str(action),
+            contenttype_current=contenttype_current,
+            contenttype_guessed=contenttype_guessed,
+            return_meta=True,
+            return_rev=True,
+        )
         if currentrev is None:
             item_modified.send(app, fqname=fqname, action=action, new_data=data, new_meta=new_meta)
         else:
-            item_modified.send(app, fqname=fqname, action=action, new_data=data, new_meta=new_meta,
-                               data=currentrev.data, meta=currentrev.meta)
+            item_modified.send(
+                app,
+                fqname=fqname,
+                action=action,
+                new_data=data,
+                new_meta=new_meta,
+                data=currentrev.data,
+                meta=currentrev.meta,
+            )
         if currentrev is not None:
             close_file(currentrev.data)
         close_file(data)
@@ -990,7 +1175,7 @@ class Item:
         return new_meta[REVID], new_meta[SIZE]
 
     def handle_variables(self, data, meta):
-        """ Expand @VARIABLE@ in data, where variable is SIG, DATE, etc
+        """Expand @VARIABLE@ in data, where variable is SIG, DATE, etc
 
         TODO: add a means for wiki admins and users to add custom variables.
 
@@ -999,47 +1184,47 @@ class Item:
         @rtype: string
         @return: new text of wikipage, variables replaced
         """
-        logging.debug("handle_variable data: %r" % data)
+        logging.debug(f"handle_variable data: {data!r}")
         if self.contenttype not in CONTENTTYPE_VARIABLES:
             return data
-        if '@' not in data:
+        if "@" not in data:
             return data
-        if not request.path.startswith('/+modify'):
+        if not request.path.startswith("/+modify"):
             return data
-        if TEMPLATE in meta['tags']:
+        if TEMPLATE in meta["tags"]:
             return data
 
-        item_name = request.path.split('/', 2)[-1]
+        item_name = request.path.split("/", 2)[-1]
         signature = flaskg.user.name0 if flaskg.user.valid else request.remote_addr
 
         variables = {
-            'PAGE': item_name,
-            'ITEM': item_name,
-            'TIMESTAMP': strftime("%Y-%m-%d %H:%M:%S %Z"),
-            'TIME': "<<DateTime(%s)>>" % strftime("%Y-%m-%dT%H:%M:%SZ"),
-            'DATE': "<<Date(%s)>>" % strftime("%Y-%m-%dT%H:%M:%SZ"),
-            'ME': flaskg.user.name0,
-            'USERNAME': signature,
-            'USER': "-- %s" % signature,
-            'SIG': "-- %s <<DateTime(%s)>>" % (signature, strftime("%Y-%m-%dT%H:%M:%SZ")),
+            "PAGE": item_name,
+            "ITEM": item_name,
+            "TIMESTAMP": strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "TIME": f"<<DateTime({strftime('%Y-%m-%dT%H:%M:%SZ')})>>",
+            "DATE": f"<<Date({strftime('%Y-%m-%dT%H:%M:%SZ')})>>",
+            "ME": flaskg.user.name0,
+            "USERNAME": signature,
+            "USER": f"-- {signature}",
+            "SIG": f"-- {signature} <<DateTime({strftime('%Y-%m-%dT%H:%M:%SZ')})>>",
         }
 
-        email = flaskg.user.profile._meta.get('email', None)
+        email = flaskg.user.profile._meta.get("email", None)
         if email:
             obfuscated_email_address = encodeSpamSafeEmail(email)
-            variables['MAILTO'] = "<<MailTo({0})>>".format(obfuscated_email_address)
-            variables['EMAIL'] = "<<MailTo({0})>>".format(email)
+            variables["MAILTO"] = f"<<MailTo({obfuscated_email_address})>>"
+            variables["EMAIL"] = f"<<MailTo({email})>>"
         else:
             # penalty for not being logged in is a mangled variable,
             # else next user to save item may accidentally reveal his email address
-            variables['MAILTO'] = "@ EMAIl@"
-            variables['EMAIL'] = "@ MAILTO@"
+            variables["MAILTO"] = "@ EMAIl@"
+            variables["EMAIL"] = "@ MAILTO@"
 
         for name in variables:
             try:
-                data = data.replace('@{0}@'.format(name), variables[name])
+                data = data.replace(f"@{name}@", variables[name])
             except UnicodeError:
-                logging.warning("handle_variables: UnicodeError! name: %r value: %r" % (name, variables[name]))
+                logging.warning(f"handle_variables: UnicodeError! name: {name!r} value: {variables[name]!r}")
         return data
 
     @property
@@ -1048,7 +1233,7 @@ class Item:
         Return the possible prefixes for subitems.
         """
         names = self.names
-        return [name + '/' if name else '' for name in names]
+        return [name + "/" if name else "" for name in names]
 
     @property
     def name_old_subitem_prefixes(self):
@@ -1056,7 +1241,7 @@ class Item:
         Return the possible prefixes for subitems using name_old value for deleted items.
         """
         names = self.meta[NAME_OLD]
-        return [name + '/' for name in names]
+        return [name + "/" for name in names]
 
     def get_prefix_match(self, name, prefixes):
         """
@@ -1104,7 +1289,7 @@ class Item:
 
         :param isglobalindex: True if the query is for global indexes.
         """
-        prefixes = [''] if isglobalindex else self.subitem_prefixes
+        prefixes = [""] if isglobalindex else self.subitem_prefixes
         # IndexEntry instances of "file" subitems
         files = []
         # IndexEntry instances of "directory" subitems
@@ -1118,13 +1303,13 @@ class Item:
                 prefix = self.get_prefix_match(fullname, prefixes)
                 if prefix is not None:
                     fullname_fqname = CompositeName(rev[NAMESPACE], NAME_EXACT, fullname)
-                    relname = fullname[len(prefix):]
-                    if '/' in relname:
+                    relname = fullname[len(prefix) :]
+                    if "/" in relname:
                         # Find the *direct* subitem that is the ancestor of current
                         # (indirect) subitem. e.g. suppose when the index root is
                         # 'foo', and current item (`rev`) is 'foo/bar/lorem/ipsum',
                         # 'foo/bar' will be found.
-                        direct_relname = relname.partition('/')[0]
+                        direct_relname = relname.partition("/")[0]
                         direct_relname_fqname = CompositeName(rev[NAMESPACE], NAME_EXACT, direct_relname)
                         if direct_relname_fqname not in added_dir_relnames:
                             added_dir_relnames.add(direct_relname_fqname)
@@ -1134,8 +1319,8 @@ class Item:
                 mini_meta = {key: rev[key] for key in (CONTENTTYPE, ITEMTYPE, SIZE, MTIME, REV_NUMBER, NAMESPACE)}
                 if TAGS in rev and rev[TAGS]:
                     mini_meta[TAGS] = rev[TAGS]
-                mini_meta[USERID] = rev.get(USERID, '')
-                mini_meta[ADDRESS] = rev.get(ADDRESS, '') if app.cfg.show_hosts else ''
+                mini_meta[USERID] = rev.get(USERID, "")
+                mini_meta[ADDRESS] = rev.get(ADDRESS, "") if app.cfg.show_hosts else ""
                 files.append(IndexEntry(relname, fullname_fqname, mini_meta))
         files = sorted(files, key=lambda x: x[1])  # default namespace items are on top
         return dirs, files
@@ -1153,7 +1338,7 @@ class Item:
         Output:
           Returns a whoosh.query.Prefix object for the input parameters
         """
-        prefix = '' if isglobalindex else self.subitem_prefixes[0]
+        prefix = "" if isglobalindex else self.subitem_prefixes[0]
         if startswith:
             query = Prefix(NAME_EXACT, prefix + startswith) | Prefix(NAME_EXACT, prefix + startswith.swapcase())
         else:
@@ -1190,7 +1375,7 @@ class Item:
         query = Term(WIKINAME, app.cfg.interwikiname) & self.build_index_query(
             startswith, selected_groups, isglobalindex
         )
-        if not fqname.value.startswith(NAMESPACE_ALL + '/') and fqname.value != NAMESPACE_ALL:
+        if not fqname.value.startswith(NAMESPACE_ALL + "/") and fqname.value != NAMESPACE_ALL:
             query = Term(NAMESPACE, fqname.namespace) & query
         revs = flaskg.storage.search_meta(query, idx_name=LATEST_REVS, sortedby=NAME_EXACT, limit=None)
         return self.make_flat_index(revs, isglobalindex)
@@ -1200,11 +1385,13 @@ class Contentful(Item):
     """
     Base class for Item subclasses that have content.
     """
+
     @property
     def ModifyForm(self):
         class C(self._ModifyForm):
             content_form = self.content.ModifyForm
-        C.__name__ = 'ModifyForm'
+
+        C.__name__ = "ModifyForm"
         return C
 
 
@@ -1213,9 +1400,10 @@ class Default(Contentful):
     """
     A "conventional" wiki item.
     """
+
     itemtype = ITEMTYPE_DEFAULT
-    display_name = L_('Default')
-    description = L_('Wiki item')
+    display_name = L_("Default")
+    description = L_("Wiki item")
     order = -10
 
     def _do_modify_show_templates(self):
@@ -1223,21 +1411,29 @@ class Default(Contentful):
         rev_ids = []
         item_templates = self.content.get_templates(self.contenttype)
         if not item_templates:
-            return redirect(url_for('frontend.modify_item', item_name=self.fqname, itemtype=self.itemtype,
-                                    contenttype=self.contenttype, template=''))
-        return render_template('modify_select_template.html',
-                               item=self,
-                               item_name=self.name,
-                               fqname=self.fqname,
-                               itemtype=self.itemtype,
-                               rev=self.rev,
-                               contenttype=self.contenttype,
-                               templates=item_templates,
-                               first_rev_id=rev_ids and rev_ids[0],
-                               last_rev_id=rev_ids and rev_ids[-1],
-                               meta_rendered='',
-                               data_rendered='',
-                               )
+            return redirect(
+                url_for(
+                    "frontend.modify_item",
+                    item_name=self.fqname,
+                    itemtype=self.itemtype,
+                    contenttype=self.contenttype,
+                    template="",
+                )
+            )
+        return render_template(
+            "modify_select_template.html",
+            item=self,
+            item_name=self.name,
+            fqname=self.fqname,
+            itemtype=self.itemtype,
+            rev=self.rev,
+            contenttype=self.contenttype,
+            templates=item_templates,
+            first_rev_id=rev_ids and rev_ids[0],
+            last_rev_id=rev_ids and rev_ids[-1],
+            meta_rendered="",
+            data_rendered="",
+        )
 
     def do_show(self, revid, item_is_deleted=False):
         """
@@ -1247,21 +1443,22 @@ class Default(Contentful):
         rev_navigation_ids_dates = rev_navigation.prior_next_revs(revid, self.fqname)
         # create extra meta tags for use by web crawlers
         html_head_meta = {}
-        if 'tags' in self.meta and self.meta['tags']:
-            html_head_meta['keywords'] = ', '.join(self.meta['tags'])
-        if 'summary' in self.meta and self.meta['summary']:
-            html_head_meta['description'] = self.meta['summary']
-        return render_template('show.html',
-                               item=self,
-                               item_name=self.name,
-                               fqname=self.fqname,
-                               rev=self.rev,
-                               contenttype=self.contenttype,
-                               rev_navigation_ids_dates=rev_navigation_ids_dates,
-                               data_rendered=Markup(self.content._render_data()),
-                               html_head_meta=html_head_meta,
-                               item_is_deleted=item_is_deleted,
-                               )
+        if "tags" in self.meta and self.meta["tags"]:
+            html_head_meta["keywords"] = ", ".join(self.meta["tags"])
+        if "summary" in self.meta and self.meta["summary"]:
+            html_head_meta["description"] = self.meta["summary"]
+        return render_template(
+            "show.html",
+            item=self,
+            item_name=self.name,
+            fqname=self.fqname,
+            rev=self.rev,
+            contenttype=self.contenttype,
+            rev_navigation_ids_dates=rev_navigation_ids_dates,
+            data_rendered=Markup(self.content._render_data()),
+            html_head_meta=html_head_meta,
+            item_is_deleted=item_is_deleted,
+        )
 
     def doc_link(self, content_name, link_text):
         """
@@ -1271,8 +1468,13 @@ class Default(Contentful):
         :param link_text: unchanged or replaced by alert message
         :return: path to help, link text
         """
-        query = And([Term(NAMESPACE, "help-" + flaskg.user.language), Term(NAME_EXACT, content_name),
-                     Term(WIKINAME, app.cfg.interwikiname)])
+        query = And(
+            [
+                Term(NAMESPACE, "help-" + flaskg.user.language),
+                Term(NAME_EXACT, content_name),
+                Term(WIKINAME, app.cfg.interwikiname),
+            ]
+        )
         results = list(flaskg.storage.search_meta(query, idx_name=LATEST_REVS, limit=None))
         if results:
             return "/help-" + flaskg.user.language + "/" + content_name, link_text
@@ -1285,11 +1487,11 @@ class Default(Contentful):
         """
         if request.values.get(COMMENT):
             return True
-        if request.values.get('meta_form_acl') != meta.get('acl', 'None'):
+        if request.values.get("meta_form_acl") != meta.get("acl", "None"):
             return True
-        if request.values.get('meta_form_summary') != meta.get('summary', None):
+        if request.values.get("meta_form_summary") != meta.get("summary", None):
             return True
-        if meta[NAME][0].endswith('Group'):
+        if meta[NAME][0].endswith("Group"):
             try:
                 new = request.values.get(USERGROUP).splitlines()
             except KeyError:
@@ -1297,46 +1499,50 @@ class Default(Contentful):
             old = meta.get(USERGROUP, None)
             if new != old:
                 return True
-        if meta[NAME][0].endswith('Dict'):
+        if meta[NAME][0].endswith("Dict"):
             new = request.values.get(WIKIDICT)
             new = str_to_dict(new)
             old = meta.get(WIKIDICT, None)
             if new != old:
                 return True
-        new_tags = request.values.get('meta_form_tags').replace(" ", "").split(',')
+        new_tags = request.values.get("meta_form_tags").replace(" ", "").split(",")
         if new_tags == [""]:
             new_tags = []
-        if new_tags != meta.get('tags', None):
+        if new_tags != meta.get("tags", None):
             return True
         return False
 
     def do_modify(self):
         if isinstance(self.content, NonExistentContent) and not flaskg.user.may.create(self.name):
-            abort(403, description=' '
-                  + _('You do not have permission to create the item named "{name}".'.format(name=self.name)))
+            abort(
+                403,
+                description=" "
+                + _('You do not have permission to create the item named "{name}".').format(name=self.name),
+            )
 
         method = request.method
-        if method in ['GET', 'HEAD']:
+        if method in ["GET", "HEAD"]:
             if isinstance(self.content, NonExistentContent):
                 start, end, matches = find_matches(self.fqname)
                 similar_names = sorted(matches.keys())
-                return render_template('modify_select_contenttype.html',
-                                       fqname=self.fqname,
-                                       item_name=self.name,
-                                       itemtype=self.itemtype,
-                                       group_names=content_registry.group_names,
-                                       groups=content_registry.groups,
-                                       similar_names=similar_names,
-                                       )
+                return render_template(
+                    "modify_select_contenttype.html",
+                    fqname=self.fqname,
+                    item_name=self.name,
+                    itemtype=self.itemtype,
+                    group_names=content_registry.group_names,
+                    groups=content_registry.groups,
+                    similar_names=similar_names,
+                )
 
         item = self
         flaskg.edit_utils = edit_utils = Edit_Utils(self)
 
         # these will be updated if user has clicked Preview
-        preview_diffs = ''
-        preview_rendered = ''
+        preview_diffs = ""
+        preview_rendered = ""
 
-        if request.values.get('cancel'):
+        if request.values.get("cancel"):
             edit_utils.delete_draft()
             if app.cfg.edit_locking_policy == LOCK:
                 edit_utils.unlock_item(cancel=True)
@@ -1351,7 +1557,7 @@ class Default(Contentful):
                 # edit locking policy is True and someone else has file locked
                 edit_utils.cursor_close()
                 return redirect(url_for_item(self.name))
-        elif method in ['GET', 'HEAD']:
+        elif method in ["GET", "HEAD"]:
             # if there is not a draft row, create one to aid in conflict detection
             edit_utils.put_draft(None, overwrite=False)
 
@@ -1365,14 +1571,14 @@ class Default(Contentful):
                 item = Item.create(template_name)
                 form = self.ModifyForm.from_item(item)
                 # replace template name with new item name and remove TEMPLATE tag
-                form['meta_form']['name'] = self.names[0]
-                form['meta_form']['tags'].remove(TEMPLATE)
+                form["meta_form"]["name"] = self.names[0]
+                form["meta_form"]["tags"].remove(TEMPLATE)
             else:
                 form = self.ModifyForm.from_item(item)
         else:
             form = self.ModifyForm.from_item(item)
 
-        if method == 'POST':
+        if method == "POST":
             # XXX workaround for *Draw items
             if isinstance(self.content, Draw):
                 try:
@@ -1389,12 +1595,12 @@ class Default(Contentful):
             form = self.ModifyForm.from_request(request)
             meta, data, contenttype_guessed, comment = form._dump(self)
             if contenttype_guessed:
-                m = re.search('charset=(.+?)($|;)', contenttype_guessed)
+                m = re.search("charset=(.+?)($|;)", contenttype_guessed)
                 if m:
                     data = str(data, m.group(1))
             state = dict(fqname=self.fqname, itemid=meta.get(ITEMID), meta=meta)
             if form.validate(state):
-                if request.values.get('preview'):
+                if request.values.get("preview"):
                     # user has clicked Preview button, create diff and rendered item
                     edit_utils.put_draft(data)
                     old_item = Item.create(self.fqname.fullname, rev_id=CURRENT, contenttype=self.contenttype)
@@ -1404,23 +1610,23 @@ class Default(Contentful):
                         preview_diffs = [(d[0], Markup(d[1]), d[2], Markup(d[3])) for d in html_diff(old_text, data)]
                         preview_rendered = item.content._render_data(preview=data)
                     else:  # TODO: make preview button inactive for empty items, see #1539
-                        flash(_("No preview available for empty items."), 'error')
+                        flash(_("No preview available for empty items."), "error")
                     close_file(old_item.rev.data)
                 else:
                     # user clicked OK/Save button, check for conflicts,
-                    if 'charset' in self.contenttype:
+                    if "charset" in self.contenttype:
                         draft, draft_data = edit_utils.get_draft()
                         if draft:
                             # will always be a draft for normal users,
                             # but bot (as in load testing) may post without prior get
                             u_name, i_id, i_name, rev_number, save_time, rev_id = draft
-                            if not rev_id == 'new-item':
+                            if not rev_id == "new-item":
                                 original_item = Item.create(self.name, rev_id=rev_id, contenttype=self.contenttype)
-                                charset = original_item.contenttype.split('charset=')[1]
+                                charset = original_item.contenttype.split("charset=")[1]
                                 original_text = original_item.rev.data.read().decode(charset)
                                 close_file(original_item.rev.data)
                             else:
-                                original_text = ''
+                                original_text = ""
                             if original_text == data and not self.meta_changed(item.meta):
                                 flash(_("Nothing changed, nothing saved."), "info")
                                 edit_utils.delete_draft()
@@ -1429,20 +1635,22 @@ class Default(Contentful):
                                 edit_utils.cursor_close()
                                 return redirect(url_for_item(**self.fqname.split))
 
-                            if rev_number < self.meta.get('rev_number', 0):
+                            if rev_number < self.meta.get("rev_number", 0):
                                 # we have conflict - someone else has saved item, create and save 3-way diff,
                                 # give user error message to fix it
                                 saved_item = Item.create(self.name, rev_id=CURRENT, contenttype=self.contenttype)
-                                charset = saved_item.contenttype.split('charset=')[1]
+                                charset = saved_item.contenttype.split("charset=")[1]
                                 saved_text = saved_item.content.data.decode(charset)
                                 data3 = diff3.text_merge(original_text, saved_text, data)
                                 data = data3
-                                comment = _("CONFLICT ") + comment or ''
-                                flash(_("An edit conflict has occurred, edit this item again to resolve conflicts."),
-                                      "error")
+                                comment = _("CONFLICT ") + comment or ""
+                                flash(
+                                    _("An edit conflict has occurred, edit this item again to resolve conflicts."),
+                                    "error",
+                                )
 
                     # save the new revision, unlock, delete draft
-                    contenttype_qs = request.values.get('contenttype')
+                    contenttype_qs = request.values.get("contenttype")
                     try:
                         self.modify(meta, data, comment, contenttype_guessed, **{CONTENTTYPE: contenttype_qs})
                     except AccessDenied:
@@ -1454,7 +1662,7 @@ class Default(Contentful):
                         if app.cfg.edit_locking_policy == LOCK:
                             locked_msg = edit_utils.unlock_item()
                             if locked_msg:
-                                logging.error("Item saved but locked by someone else: {0!r}".format(self.fqname))
+                                logging.error(f"Item saved but locked by someone else: {self.fqname!r}")
                                 flash(locked_msg, "info")
                         edit_utils.cursor_close()
                         return redirect(url_for_item(**self.fqname.split))
@@ -1470,7 +1678,7 @@ class Default(Contentful):
             edit_rows = str(flaskg.user.profile._defaults[EDIT_ROWS])
         close_file(self.rev.data)
         draft_data = None
-        if not request.values.get('preview'):
+        if not request.values.get("preview"):
             # request is +Modify GET, check for abandoned draft
             draft, draft_data = edit_utils.get_draft()
             if draft:
@@ -1481,13 +1689,21 @@ class Default(Contentful):
                     # that  must be merged manually
                     interval, number = show_time.duration(time() - save_time)
                     if self.rev.meta.get(REV_NUMBER, 0) == rev_number:
-                        flash(L_("You may recover your draft saved %(number)s %(interval)s "
-                                 "ago by clicking the 'Load Draft' button.",
-                                 number=number, interval=interval, ), 'info')
+                        flash(
+                            L_(
+                                "You may recover your draft saved {number} {interval} "
+                                "ago by clicking the 'Load Draft' button."
+                            ).format(number=number, interval=interval),
+                            "info",
+                        )
                     else:
-                        flash(L_("Your draft saved %(number)s %(interval)s ago is outdated, click 'Cancel' to discard "
-                                 "or 'Load Draft', then 'Save' to merge conflicting updates.",
-                                 number=number, interval=interval, ), 'error')
+                        flash(
+                            L_(
+                                "Your draft saved {number} {interval} ago is outdated, click 'Cancel' to discard "
+                                "or 'Load Draft', then 'Save' to merge conflicting updates."
+                            ).format(number=number, interval=interval),
+                            "error",
+                        )
 
         if app.cfg.edit_locking_policy == LOCK:
             # we pass lock_duration so javascript can show alert before timer expires
@@ -1496,26 +1712,27 @@ class Default(Contentful):
             lock_duration = None
         edit_utils.cursor_close()
         # enable sidebar themes to show OK, Preview, Cancel buttons that do not scroll off display
-        is_modify_text = True if 'text' in self.contenttype else False
+        is_modify_text = True if "text" in self.contenttype else False
         # if request is +modify GET we show modify form, else if POST Preview
         # we show modify form + diff + rendered item
-        return render_template('modify.html',
-                               fqname=self.fqname,
-                               item_name=self.name,
-                               item=self,
-                               rows_meta=str(ROWS_META),
-                               cols=str(COLS),
-                               form=form,
-                               search_form=None,
-                               help=help,
-                               preview_diffs=preview_diffs,
-                               preview_rendered=preview_rendered,
-                               edit_rows=edit_rows,
-                               is_modify_text=is_modify_text,
-                               draft_data=draft_data,
-                               lock_duration=lock_duration,
-                               tuple=tuple,
-                               )
+        return render_template(
+            "modify.html",
+            fqname=self.fqname,
+            item_name=self.name,
+            item=self,
+            rows_meta=str(ROWS_META),
+            cols=str(COLS),
+            form=form,
+            search_form=None,
+            help=help,
+            preview_diffs=preview_diffs,
+            preview_rendered=preview_rendered,
+            edit_rows=edit_rows,
+            is_modify_text=is_modify_text,
+            draft_data=draft_data,
+            lock_duration=lock_duration,
+            tuple=tuple,
+        )
 
 
 @register
@@ -1524,9 +1741,10 @@ class Userprofile(Item):
     Currently userprofile is implemented as a contenttype. This is a stub of an
     itemtype implementation of userprofile.
     """
+
     itemtype = ITEMTYPE_USERPROFILE
-    display_name = L_('User profile')
-    description = L_('User profile item (not implemented yet!)')
+    display_name = L_("User profile")
+    description = L_("User profile item (not implemented yet!)")
 
 
 @register
@@ -1535,6 +1753,7 @@ class NonExistent(Item):
     A dummy Item for nonexistent items (when modifying, a nonexistent item with
     undetermined itemtype)
     """
+
     itemtype = ITEMTYPE_NONEXISTENT
     shown = False
 
@@ -1546,10 +1765,7 @@ class NonExistent(Item):
         if flaskg.user.may.create(self.name):
             content = self._select_itemtype()
         else:
-            content = render_template('show_nonexistent.html',
-                                      item_name=self.name,
-                                      fqname=self.fqname,
-                                      )
+            content = render_template("show_nonexistent.html", item_name=self.name, fqname=self.fqname)
         return Response(content, 404)
 
     def do_modify(self):
@@ -1581,11 +1797,8 @@ class NonExistent(Item):
         except MissingParentError as e:
             flash(str(e), "error")
             form = CreateItemForm().from_defaults()
-            form['target'] = self.fqname.fullname
-            return render_template('create_new_item.html',
-                                   fqname=self.fqname,
-                                   form=form,
-                                   )
+            form["target"] = self.fqname.fullname
+            return render_template("create_new_item.html", fqname=self.fqname, form=form)
 
         # verify name meets standards
         try:
@@ -1593,44 +1806,43 @@ class NonExistent(Item):
         except NameNotValidError:
             # a flash message has already been created
             form = CreateItemForm().from_defaults()
-            form['target'] = self.fqname.fullname
-            return render_template('create_new_item.html',
-                                   fqname=self.fqname,
-                                   form=form,
-                                   )
+            form["target"] = self.fqname.fullname
+            return render_template("create_new_item.html", fqname=self.fqname, form=form)
 
         start, end, matches = find_matches(self.fqname)
         similar_names = sorted(matches.keys())
-        return render_template('modify_select_contenttype.html',
-                               fqname=self.fqname,
-                               item_name=self.name,
-                               itemtype='default',  # create a normal wiki item
-                               group_names=content_registry.group_names,
-                               groups=content_registry.groups,
-                               similar_names=similar_names,
-                               )
+        return render_template(
+            "modify_select_contenttype.html",
+            fqname=self.fqname,
+            item_name=self.name,
+            itemtype="default",  # create a normal wiki item
+            group_names=content_registry.group_names,
+            groups=content_registry.groups,
+            similar_names=similar_names,
+        )
 
         # dead code, see above
-        return render_template('modify_select_itemtype.html',
-                               item=self,
-                               item_name=self.name,
-                               fqname=self.fqname,
-                               itemtypes=item_registry.shown_entries,
-                               )
+        return render_template(
+            "modify_select_itemtype.html",
+            item=self,
+            item_name=self.name,
+            fqname=self.fqname,
+            itemtypes=item_registry.shown_entries,
+        )
 
-    def rename(self, name, comment=''):
+    def rename(self, name, comment=""):
         # pointless for non-existing items
         pass
 
-    def delete(self, comment=''):
+    def delete(self, comment=""):
         # pointless for non-existing items
         pass
 
-    def revert(self, comment=''):
+    def revert(self, comment=""):
         # pointless for non-existing items
         pass
 
-    def destroy(self, comment='', destroy_item=False):
+    def destroy(self, comment="", destroy_item=False):
         # pointless for non-existing items
         pass
 

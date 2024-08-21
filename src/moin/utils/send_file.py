@@ -31,7 +31,7 @@ from werkzeug.wsgi import wrap_file
 from flask import current_app, request
 
 
-def encode_rfc2231(value, coding='UTF-8', lang=''):
+def encode_rfc2231(value, coding="UTF-8", lang=""):
     """
     Encode a value according to RFC2231/5987.
 
@@ -39,14 +39,21 @@ def encode_rfc2231(value, coding='UTF-8', lang=''):
     :param coding: the coding (charset) to use. it is a good idea to use 'UTF-8'.
     :param lang: the language to use. defaults to empty string (no language given).
     """
-    return "{0}'{1}'{2}".format(coding, lang, quote(value, encoding=coding))
+    return f"{coding}'{lang}'{quote(value, encoding=coding)}"
 
 
-def send_file(filename=None, file=None,
-              mimetype=None,
-              as_attachment=False, attachment_filename=None,
-              mtime=None, cache_timeout=60 * 60 * 12,
-              add_etags=True, etag=None, conditional=False):
+def send_file(
+    filename=None,
+    file=None,
+    mimetype=None,
+    as_attachment=False,
+    attachment_filename=None,
+    mtime=None,
+    cache_timeout=60 * 60 * 12,
+    add_etags=True,
+    etag=None,
+    conditional=False,
+):
     """Sends the contents of a file to the client.
 
     A file can be either a filesystem file or a file-like object (this code
@@ -56,8 +63,8 @@ def send_file(filename=None, file=None,
     (for filesystem files some more optimizations may be possible that for
     file-like objects not having a filesystem filename).
     By default it will try to use the WSGI server's file_wrapper support.
-    Alternatively you can set the application's :attr:`~Flask.use_x_sendfile`
-    attribute to ``True`` to directly emit an `X-Sendfile` header.  This
+    Alternatively you can set ``USE_X_SENDFILE = True`` in the application's
+    config to directly emit an `X-Sendfile` header.  This
     however requires support of the underlying webserver for `X-Sendfile`.
 
     send_file will try to guess some stuff for you if you do not provide them:
@@ -113,7 +120,7 @@ def send_file(filename=None, file=None,
     if mimetype is None and (filename or attachment_filename):
         mimetype = mimetypes.guess_type(filename or attachment_filename)[0]
     if mimetype is None:
-        mimetype = 'application/octet-stream'
+        mimetype = "application/octet-stream"
 
     headers = Headers()
 
@@ -122,7 +129,7 @@ def send_file(filename=None, file=None,
     # See `_ensure_sequence` in werkzeug/wrappers.py
     if filename:
         fsize = os.path.getsize(filename)
-    elif file and hasattr(file, 'seek') and hasattr(file, 'tell'):
+    elif file and hasattr(file, "seek") and hasattr(file, "tell"):
         fsize = None
         # be extra careful as some file-like objects (like zip members) have a seek
         # and tell methods, but they just raise some exception (e.g. UnsupportedOperation)
@@ -139,27 +146,27 @@ def send_file(filename=None, file=None,
     else:
         fsize = None
     if fsize is not None:
-        headers.add('Content-Length', fsize)
+        headers.add("Content-Length", fsize)
 
     if as_attachment:
         if attachment_filename is None:
             if not filename:
-                raise TypeError('filename unavailable, required for sending as attachment')
+                raise TypeError("filename unavailable, required for sending as attachment")
             attachment_filename = os.path.basename(filename)
         # Note: we only give filename* param, not filename param, hoping that a user agent that
         # does not support filename* then falls back into using the last URL fragment (and decodes
         # that correctly). See there for details: http://greenbytes.de/tech/tc2231/
-        headers.add('Content-Disposition', 'attachment; filename*={0}'.format(encode_rfc2231(attachment_filename)))
+        headers.add("Content-Disposition", f"attachment; filename*={encode_rfc2231(attachment_filename)}")
 
-    if current_app.use_x_sendfile and filename:
+    if current_app.config["USE_X_SENDFILE"] and filename:
         if file:
             file.close()
-        headers['X-Sendfile'] = filename
+        headers["X-Sendfile"] = filename
         data = None
     else:
         if filename:
             if not file:
-                file = open(filename, 'rb')
+                file = open(filename, "rb")
             if mtime is None:
                 mtime = os.path.getmtime(filename)
         data = wrap_file(request.environ, file)
@@ -183,10 +190,8 @@ def send_file(filename=None, file=None,
     if add_etags:
         if etag is None and filename:
             filename_encoded = filename if isinstance(filename, bytes) else filename.encode()
-            etag = 'flask-{0}-{1}-{2}'.format(
-                mtime or os.path.getmtime(filename),
-                os.path.getsize(filename),
-                adler32(filename_encoded) & 0xffffffff
+            etag = "flask-{}-{}-{}".format(
+                mtime or os.path.getmtime(filename), os.path.getsize(filename), adler32(filename_encoded) & 0xFFFFFFFF
             )
         if etag is None:
             raise TypeError("can't determine etag - please give etag or filename")
@@ -196,5 +201,5 @@ def send_file(filename=None, file=None,
             # make sure we don't send x-sendfile for servers that
             # ignore the 304 status code for x-sendfile.
             if rv.status_code == 304:
-                rv.headers.pop('x-sendfile', None)
+                rv.headers.pop("x-sendfile", None)
     return rv

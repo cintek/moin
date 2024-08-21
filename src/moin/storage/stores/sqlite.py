@@ -17,13 +17,14 @@ import zlib
 from sqlite3 import connect, Row, IntegrityError
 
 from moin.constants.namespaces import NAMESPACE_USERPROFILES
-from . import (BytesMutableStoreBase, FileMutableStoreBase, FileMutableStoreMixin)
+from . import BytesMutableStoreBase, FileMutableStoreBase, FileMutableStoreMixin
 
 
 class BytesStore(BytesMutableStoreBase):
     """
     A simple sqlite3 based store.
     """
+
     @classmethod
     def from_uri(cls, uri):
         """
@@ -41,7 +42,7 @@ class BytesStore(BytesMutableStoreBase):
             params[2] = int(params[2])
         return cls(*params)
 
-    def __init__(self, db_name, table_name='store', compression_level=0):
+    def __init__(self, db_name, table_name="store", compression_level=0):
         """
         Just store the params.
 
@@ -63,12 +64,12 @@ class BytesStore(BytesMutableStoreBase):
     def create(self):
         conn = connect(self.db_name)
         with conn:
-            conn.execute('create table {0} (key text primary key, value blob)'.format(self.table_name))
+            conn.execute(f"create table {self.table_name} (key text primary key, value blob)")
 
     def destroy(self):
         conn = connect(self.db_name)
         with conn:
-            conn.execute('drop table {0}'.format(self.table_name))
+            conn.execute(f"drop table {self.table_name}")
 
     def open(self):
         self.conn = connect(self.db_name, check_same_thread=False)
@@ -78,12 +79,12 @@ class BytesStore(BytesMutableStoreBase):
         pass
 
     def __iter__(self):
-        for row in self.conn.execute("select key from {0}".format(self.table_name)):
-            yield row['key']
+        for row in self.conn.execute(f"select key from {self.table_name}"):
+            yield row["key"]
 
     def __delitem__(self, key):
         with self.conn:
-            self.conn.execute('delete from {0} where key=?'.format(self.table_name), (key, ))
+            self.conn.execute(f"delete from {self.table_name} where key=?", (key,))
 
     def _compress(self, value):
         if self.compression_level:
@@ -105,10 +106,10 @@ class BytesStore(BytesMutableStoreBase):
         return value
 
     def __getitem__(self, key):
-        rows = list(self.conn.execute("select value from {0} where key=?".format(self.table_name), (key, )))
+        rows = list(self.conn.execute(f"select value from {self.table_name} where key=?", (key,)))
         if not rows:
             raise KeyError(key)
-        value = str(rows[0]['value'])  # a str in base64 encoding
+        value = str(rows[0]["value"])  # a str in base64 encoding
         value = base64.b64decode(value.encode())
         return self._decompress(value)
 
@@ -117,14 +118,12 @@ class BytesStore(BytesMutableStoreBase):
         with self.conn:
             value = base64.b64encode(value).decode()  # a str in base64 encoding
             try:
-                self.conn.execute('insert into {0} values (?, ?)'.format(self.table_name), (key, value))
+                self.conn.execute(f"insert into {self.table_name} values (?, ?)", (key, value))
             except IntegrityError:
                 if NAMESPACE_USERPROFILES in self.db_name:
                     # userprofiles namespace does support revisions so we update existing row
                     self.conn.execute(
-                        'UPDATE {0} SET value = "{2}" WHERE key = "{1}"'.format(
-                            self.table_name, key, value
-                        )
+                        'UPDATE {0} SET value = "{2}" WHERE key = "{1}"'.format(self.table_name, key, value)
                     )
                 else:
                     raise
