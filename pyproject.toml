@@ -90,18 +90,6 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-exclude = ["_tests"]
-
-[tool.setuptools.package-data]
-"moin.translations" = ["MoinMoin.pot", "*.po", ]
-"moin.static" = ["*", ]
-"moin.themes.modernized" = ["*", ]
-"moin.themes.basic" = ["*", ]
-"moin.themes.topside" = ["*", ]
-"moin.themes.topside_cms" = ["*", ]
-"moin.templates" = ["*.html", "*.xml", ]
-"moin.apps.admin.templates" = ["*.html", ]
-"moin.apps.misc.templates" = ["*.html", "*.txt", ]
 
 [build-system]
 requires = ["setuptools", "setuptools_scm[toml] >= 6.2"]
@@ -116,7 +104,6 @@ skip-magic-trailing-comma = true
 
 [tool.pytest.ini_options]
 norecursedirs = [".git", "_build", "tmp*", "env*", "dlc", "wiki", "support"]
-
 
 [tool.ruff]
 line-length = 120
@@ -160,7 +147,7 @@ unfixable = []
 "src/moin/datastructures/__init__.py" = ["F401"]
 
 [tool.bandit]
-exclude_dirs = ["quickinstall.py", "*/_tests/*"]
+exclude_dirs = ["quickinstall.py", "*/_tests/*", "*/_ui_tests/*"]
 skips = ["B101", "B105", "B106", "B307", "B311", "B403", "B608"]
 
 [tool.tox]

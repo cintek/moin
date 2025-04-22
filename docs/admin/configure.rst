@@ -94,7 +94,7 @@ and execute `moin run`.::
             index/          # wiki indexes
             preview/        # text item backups are created when user clicks edit Preview button
             sql/            # sqlite database used for edit locking
-        wiki-local/         # store custom CSS, Javascript, templates, logos, etc. here
+        wiki_local/         # store custom CSS, Javascript, templates, logos, etc. here
         wikiconfig.py       # main configuration file, modify this to add or change features
         intermap.txt        # list of external wikis used in wikilinks: [[MeatBall:InterWiki]]
 
@@ -492,6 +492,14 @@ To add a new theme, add a new directory under src/moin/themes/ where the directo
 name is the name of your theme. Note the directory structure under the other existing
 themes. Copy an `info.json` file to your theme directory and edit as needed.
 Create a file named theme.css in the src/moin/themes/<theme name>/static/css/ directory.
+
+MoinMoin uses `Flask-theme <https://pypi.org/project/flask-theme/>`_ for loading themes.
+As mentioned in the `theme loader section <https://flask-theme.readthedocs.io/en/latest/#theme-loaders>`_,
+you can configure additional directories that Flask-theme searches for themes by setting
+the THEME_PATHS configuration.
+Here is an example how you would set THEME_PATHS in wikiconfig::
+
+    THEME_PATHS = os.path.join(Config.instance_dir, "themes")
 
 To change the layout of the theme header, sidebar and footer, create a templates/ directory and
 copy and modify the files layout.html and show.html from either src/moin/templates/ or one
@@ -1546,29 +1554,68 @@ their docs for details)::
 Logging Configuration
 =====================
 
-By default, logging is configured to emit output on `stderr`. This will work
-well for the built-in server (it will show up on the console) or for Apache2 and similar
-(logging will be put into error.log).
+By default, logging is configured to emit output to `stderr`. This works well for the built-in server
+(logs will appear in the console) or for Apache2 and similar setups (logs go to `error.log`).
 
-Logging is very configurable and flexible due to the use of the `logging`
-module of the Python standard library.
+Logging is highly configurable using the `logging` module from Python’s standard library.
 
-The configuration file format is described there:
-
+The configuration file format is described in the official documentation:  
 https://docs.python.org/3/library/logging.config.html#configuration-file-format
 
+Sample logging configurations can also be found in the `contrib/logging/` directory.
 
-There are also some logging configurations in the
-`contrib/logging/` directory.
+Logging must be configured very early during startup. There are two common ways to do this:
 
-Logging configuration needs to be done very early, usually it will be done
-from your adaptor script, e.g. moin.wsgi::
+environment variable `MOINLOGGINGCONF`
+======================================
+
+You can create a custom logging configuration file and specify its path using the `MOINLOGGINGCONF` environment variable:
+
+.. code-block:: bash
+
+    export MOINLOGGINGCONF=/absolute/path/to/logging.conf
+
+This file will be loaded automatically during startup and takes precedence over all other methods.
+
+Example `logging.conf` to enable debug-level logging:
+
+.. code-block:: ini
+
+    [loggers]
+    keys=root
+
+    [handlers]
+    keys=console
+
+    [formatters]
+    keys=simple
+
+    [logger_root]
+    level=DEBUG
+    handlers=console
+
+    [handler_console]
+    class=StreamHandler
+    level=DEBUG
+    formatter=simple
+    args=(sys.stderr,)
+
+    [formatter_simple]
+    format=%(asctime)s - %(levelname)s - %(name)s - %(message)s
+
+configuration in adaptor script
+===============================
+
+Alternatively, you can load the logging configuration explicitly at the beginning of your adaptor script (e.g. `moin.wsgi`):
+
+.. code-block:: python
 
     from moin import log
-    log.load_config('contrib/logging/logfile')
+    log.load_config('/absolute/path/to/logging.conf')
 
-You have to fix that path to use a logging configuration matching your
-needs (use an absolute path).
+Make sure to use an absolute path that points to a valid logging configuration file.
 
-Please note that the logging configuration has to be a separate file, so don't
-try this in your wiki configuration file!
+**Important:**  
+The logging configuration must be stored in a **separate file** — do **not** place it inside your `wikiconfig.py`.
+
+If no configuration is provided, or if the provided configuration file cannot be loaded, Moin will fall back to a built-in default configuration, which logs to `stderr` at the `INFO` level.

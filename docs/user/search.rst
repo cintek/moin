@@ -7,10 +7,12 @@ Entering search queries
 
 To start a search, enter a query into the short query input field and type
 enter or click the search icon. By default, the names, summary, tags, content, namengram,
-summaryngram, and contentngram fields are searched.
+summaryngram, and contentngram fields of each item's last revisions are searched.
+Deleted items (trash) are excluded.
 
 The search results view provides a form for refining the search through
-ajax updates. A transaction is started each time a character is added or removed
+ajax updates. Click the `More Search Options` link to see the form.
+A transaction is started each time a character is added or removed
 in the search field. If keying is rapid, it is possible that results will
 processed out of order. The `Whoosh query` shows the last term processed.
 
@@ -200,8 +202,6 @@ The following table includes fields that may be useful for searching.
 +-------------------------+-------------------------------------------------------+
 | ``username``            | submitter user name, e.g. JoeDoe                      |
 +-------------------------+-------------------------------------------------------+
-| ``wikiname``            | wiki name, e.g. ITWiki, EngineeringWiki, SalesWiki    |
-+-------------------------+-------------------------------------------------------+
 
 ** These fields exist only in the current revisions index, see Notes below.
 
@@ -220,10 +220,6 @@ Search items with an item ACL that explicitly gives Joe read rights::
 
   acl:Joe:+read
 
-Limiting search to a specific wiki, for example in a wiki farm's shared index::
-
-  wikiname:SomeWiki  # requires correct caps
-
 Notes
 =====
 
@@ -233,10 +229,9 @@ button under the Search Options link is selected. The larger indexes all
 revisions of all items including revisions of deleted items. As noted in the table
 above the larger index omits several fields to save space.
 
-By default, all namespaces and all wikinames are searched, including the userprofiles
-index. Because the userprofiles index is normally read restricted, hits will be
-blocked and included as `n items are not shown because read permission was denied` at
-the bottom of the page.
+By default, all namespaces are searched, including the userprofiles index. Because
+the userprofiles index is normally read restricted, hits will be blocked and included
+as `n items are not shown because read permission was denied` at the bottom of the page.
 
 Items with transcluded content do not contain the transcluded content within the
 item's index. An item containing "foo" within its content and trancluding an item with

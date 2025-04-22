@@ -67,8 +67,6 @@ class Config(DefaultConfig):
     template_dirs = [os.path.join(wikiconfig_dir, "wiki_local")]
 
     # it is required that you set interwikiname to a unique, stable and non-empty name.
-    # Changing interwikiname on an existing wiki requires rebuilding the index.
-    #     moin index-destroy; moin index-create; moin index-rebuild
     interwikiname = "MyMoinMoin"
     # load the interwiki map from intermap.txt
     try:
@@ -100,6 +98,9 @@ class Config(DefaultConfig):
     # user_gravatar_default_img = "blank"  # or "mp", "identicon", "monsterid", "wavatar", "retro", "robohash".
     # you can also supply a publicly available image URL with user_gravatar_default_img,
     # see https://docs.gravatar.com/api/avatars/images/ for details
+
+    # to deactivate the discussion feature uncomment the following line
+    # supplementation_item_names = []
 
     # read about SECURITY ISSUES in docs before uncommenting the line below allowing users
     # to edit style attributes in HTML and Markdown items
@@ -281,3 +282,4 @@ SESSION_COOKIE_SAMESITE = "Lax"  # flask default is None
 # config for flask-cache:
 # CACHE_TYPE = 'filesystem'
 # CACHE_DIR = '/path/to/flask-cache-dir'
+# THEME_PATHS = os.path.join(Config.instance_dir, "themes")

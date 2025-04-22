@@ -442,8 +442,8 @@ msgstr ""
 msgid "Show"
 msgstr ""
 
-#: src/moin/apps/admin/templates/admin/trash.html:34 src/moin/config/default.py:470
-msgid "Highlight"
+#: src/moin/apps/admin/templates/admin/trash.html:34 src/moin/config/default.py:471
+msgid "Markup"
 msgstr ""
 
 #: src/moin/apps/admin/templates/admin/trash.html:39 src/moin/config/default.py:471
@@ -1182,8 +1182,8 @@ msgstr ""
 msgid "Rename this item"
 msgstr ""
 
-#: src/moin/config/default.py:470
-msgid "Show with Syntax-Highlighting"
+#: src/moin/config/default.py:471
+msgid "Show markup with Syntax-Highlighting"
 msgstr ""
 
 #: src/moin/config/default.py:471
@@ -1307,7 +1307,7 @@ msgid "Error: malformed HTML: {reason}."
 msgstr ""
 
 #: src/moin/converters/html_in.py:165
-msgid "Error: malformed HTML. Try viewing source with Highlight or Modify links."
+msgid "Error: malformed HTML. Try viewing source with Markup or Modify links."
 msgstr ""
 
 #: src/moin/converters/html_in.py:298
@@ -2040,7 +2040,7 @@ msgid "Possible ways to identify the cause of the problem:"
 msgstr ""
 
 #: src/moin/templates/crash.html:33
-msgid "Click the Highlight link within Item Views to view the raw text data."
+msgid "Click the Markup link within Item Views to view the raw text data."
 msgstr ""
 
 #: src/moin/templates/crash.html:34
